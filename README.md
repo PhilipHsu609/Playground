@@ -6,4 +6,5 @@ A workspace for miscellaneous projects and experiments.
 |---------|-------------|----------|
 | [container](./container/) | Linux container runtime from scratch | C |
 | [sELF](./sELF/) | ELF binary format parser | C |
+| [tinyrenderer](./tinyrenderer/) | Software renderer | C++ |
 | [interpreter](./interpreter/) | TBD | — |

@@ -36,6 +36,14 @@ A C program that parses ELF (Executable and Linkable Format) binaries. Reads and
 
 **Structure:** `main.c` drives the pipeline; `elf_utils.h` is a header-only library with all parsing and printing logic. The `Elf_File` struct accumulates parsed sections. The `test/` directory has sample C and x86_64 assembly programs to parse.
 
+### `tinyrenderer/` — Software Renderer
+
+A C++17 software renderer following [ssloy/tinyrenderer](https://github.com/ssloy/tinyrenderer). Implements TGA image I/O, Bresenham's line drawing, triangle rasterization with barycentric coordinates, back face culling, and z-buffer hidden surface removal.
+
+**Structure:** Headers in `include/tinyrenderer/`, implementations in `src/`, tests in `test/` (Google Test). Key classes: `TGAImage` (image I/O), `Vector` (generic math vectors), `Model` (OBJ loader), `Drawer` (rendering primitives). OBJ models live in `obj/`.
+
+**Build:** CMake with vcpkg (`fmt`, `GTest`). Compiler: `clang++`, C++17, strict warnings.
+
 ### `interpreter/` — Empty (future project)
 
 ## Build Commands
@@ -51,6 +59,12 @@ clang-format -i contained.c
 make                    # compiles with gcc, also builds test binaries
 make clean
 ./main <elf-file>       # e.g. ./main main
+
+# tinyrenderer/ — build and run
+make                    # cmake configure + build (Debug by default)
+make BUILD_TYPE=Release # release build
+make test               # run Google Test suite
+make clean
 ```
 
 ## Code Style (`container/`)
