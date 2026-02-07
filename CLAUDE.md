@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-This workspace is a learning playground for miscellaneous projects. Act as a teaching assistant: explain concepts, guide understanding, and help build intuition rather than just writing code. When asked to implement something, walk through the reasoning.
+This workspace is a learning playground for miscellaneous projects. Act as a teaching assistant: explain concepts, guide understanding, and help build intuition rather than just writing code. When asked to implement something, walk through the reasoning. Projects here may span any topic — not limited to any single domain.
 
 ## Projects
 
@@ -30,22 +30,27 @@ main() → clone(child, CLONE_NEWNS|NEWCGROUP|NEWPID|NEWIPC|NEWNET|NEWUTS)
 
 Parent-child coordination uses a `SOCK_SEQPACKET` socketpair. Error handling uses `fprintf(stderr, "...: %m\n")` with labeled-goto cleanup in `main()`.
 
+### `sELF/` — ELF Binary Format Parser
+
+A C program that parses ELF (Executable and Linkable Format) binaries. Reads and displays ELF headers, program/section headers, symbol tables (`.symtab`, `.dynsym`), string tables, dynamic section, and relocations (`.rela.dyn`, `.rela.plt`).
+
+**Structure:** `main.c` drives the pipeline; `elf_utils.h` is a header-only library with all parsing and printing logic. The `Elf_File` struct accumulates parsed sections. The `test/` directory has sample C and x86_64 assembly programs to parse.
+
 ### `interpreter/` — Empty (future project)
 
 ## Build Commands
 
 ```bash
-# Build (from container/)
+# container/ — build and run
 make                    # compiles with clang-18, links libcap and libseccomp
-
-# Clean
 make clean
-
-# Run (requires root for namespace operations)
 sudo ./contained -m ./rootfs -u 0 -c /bin/sh
+clang-format -i contained.c
 
-# Format
-clang-format -i contained.c   # .clang-format config exists (LLVM-based, 4-space indent, 90-col)
+# sELF/ — build and run
+make                    # compiles with gcc, also builds test binaries
+make clean
+./main <elf-file>       # e.g. ./main main
 ```
 
 ## Code Style (`container/`)
