@@ -1,0 +1,10 @@
+# Build artifacts
+*.o
+container/contained
+
+# Root filesystem (too large for git, download/extract separately)
+container/rootfs/
+
+# Editor/LSP caches
+.cache/
+compile_commands.json
