@@ -1,0 +1,36 @@
+# Build artifacts
+/.cache/
+/.vscode/
+/bin/
+/build/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Compiled files
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+*.exe
+
+# Test results
+Testing/
+*.gcov
+*.gcda
+*.gcno
+

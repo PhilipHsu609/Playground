@@ -44,7 +44,13 @@ A C++17 software renderer following [ssloy/tinyrenderer](https://github.com/sslo
 
 **Build:** CMake with vcpkg (`fmt`, `GTest`). Compiler: `clang++`, C++17, strict warnings.
 
-### `interpreter/` — Empty (future project)
+### `interpreter/` — Monkey Language Interpreter
+
+A C++23 implementation of the Monkey programming language from Thorsten Ball's *Writing An Interpreter In Go*. Covers lexing, Pratt parsing, tree-walking evaluation, and a REPL. A vehicle for learning modern C++ features (C++20/23) in a meaningful context.
+
+**Structure:** Headers in `include/monkey/`, implementations in `src/`, tests in `test/` (Google Test). Build targets: `monkey_lib` (static library), `monkey` (REPL executable), `monkey_test` (tests).
+
+**Build:** CMake with FetchContent (`fmt`, `GTest`). Compiler: `clang++-18`, C++23, strict warnings.
 
 ## Build Commands
 
@@ -59,6 +65,12 @@ clang-format -i contained.c
 make                    # compiles with gcc, also builds test binaries
 make clean
 ./main <elf-file>       # e.g. ./main main
+
+# interpreter/ — build and run
+make config              # cmake configure (FetchContent fetches deps on first run)
+make build               # build
+make test                # run Google Test suite
+make clean
 
 # tinyrenderer/ — build and run
 make                    # cmake configure + build (Debug by default)
