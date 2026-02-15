@@ -5,6 +5,7 @@ target_sources(
     monkey_lib
     PRIVATE
     lexer.cpp
+    repl.cpp
 )
 
 target_include_directories(
