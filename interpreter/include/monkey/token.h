@@ -33,6 +33,11 @@ enum class TokenType {
     // Keywords
     FUNCTION,
     LET,
+    TRUE,
+    FALSE,
+    IF,
+    ELSE,
+    RETURN,
 };
 
 struct Token {
@@ -43,10 +48,24 @@ struct Token {
 inline TokenType lookupIdent(std::string_view ident) {
     using namespace std::literals;
 
-    constexpr auto keywords = std::to_array<std::pair<std::string_view, TokenType>>({
-        {"fn"sv, TokenType::FUNCTION},
-        {"let"sv, TokenType::LET},
-    });
+    constexpr auto keywords = []() {
+        auto arr = std::to_array<std::pair<std::string_view, TokenType>>({
+            {"fn"sv, TokenType::FUNCTION},
+            {"let"sv, TokenType::LET},
+            {"true"sv, TokenType::TRUE},
+            {"false"sv, TokenType::FALSE},
+            {"if"sv, TokenType::IF},
+            {"else"sv, TokenType::ELSE},
+            {"return"sv, TokenType::RETURN},
+        });
+        std::ranges::sort(arr, std::ranges::less{},
+                          &std::pair<std::string_view, TokenType>::first);
+        return arr;
+    }();
+
+    static_assert(std::ranges::is_sorted(keywords, std::ranges::less{},
+                                         &std::pair<std::string_view, TokenType>::first),
+                  "keywords array must be sorted by the first element of the pair");
 
     const auto *it =
         std::ranges::lower_bound(keywords, ident, std::ranges::less{},
