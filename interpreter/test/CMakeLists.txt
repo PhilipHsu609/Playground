@@ -6,7 +6,7 @@ add_executable(${TEST_TARGET})
 target_sources(
     ${TEST_TARGET}
     PRIVATE
-    test.cpp  # replace with real tests (lexer_test.cpp, parser_test.cpp, ...)
+    lexer_test.cpp
 )
 
 target_link_libraries(

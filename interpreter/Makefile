@@ -15,7 +15,7 @@ build:
 	cmake --build $(BUILD_DIR)
 
 test:
-	cd $(BUILD_DIR)/test && ctest
+	cd $(BUILD_DIR)/test && ctest --output-on-failure
 
 clean:
 	cmake --build $(BUILD_DIR) --target clean
