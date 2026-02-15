@@ -35,7 +35,13 @@ FetchContent_Declare(
     GIT_TAG v1.15.2
 )
 
-FetchContent_MakeAvailable(fmt googletest)
+FetchContent_Declare(
+    magic_enum
+    GIT_REPOSITORY https://github.com/Neargye/magic_enum.git
+    GIT_TAG v0.9.7
+)
+
+FetchContent_MakeAvailable(fmt googletest magic_enum)
 
 # Add source directory
 add_subdirectory(src)

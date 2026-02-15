@@ -4,7 +4,7 @@ add_library(monkey_lib STATIC)
 target_sources(
     monkey_lib
     PRIVATE
-    token.cpp
+    lexer.cpp
 )
 
 target_include_directories(
@@ -18,6 +18,7 @@ target_link_libraries(
     PUBLIC
     project_compile_flags
     fmt::fmt
+    magic_enum::magic_enum
 )
 
 target_compile_features(monkey_lib PUBLIC cxx_std_23)
