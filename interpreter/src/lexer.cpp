@@ -1,15 +1,14 @@
 #include "monkey/lexer.h"
 #include "monkey/token.h"
 
-#include <cctype>
-#include <fmt/format.h>
-
 namespace {
-bool isLetter(char ch) {
-    return std::isalpha(static_cast<unsigned char>(ch)) != 0 || ch == '_';
+constexpr bool isLetter(char ch) {
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_';
 }
-bool isDigit(char ch) { return std::isdigit(static_cast<unsigned char>(ch)) != 0; }
-bool isWhitespace(char ch) { return std::isspace(static_cast<unsigned char>(ch)) != 0; }
+constexpr bool isDigit(char ch) { return (ch >= '0' && ch <= '9'); }
+constexpr bool isWhitespace(char ch) {
+    return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
+}
 } // namespace
 
 namespace monkey {
@@ -58,10 +57,10 @@ Token Lexer::nextToken() {
         break;
     default:
         if (isLetter(ch_)) {
-            std::string ident = readIdentifier();
+            std::string ident = readWhile(isLetter);
             return {lookupIdent(ident), ident};
         } else if (isDigit(ch_)) {
-            std::string number = readNumber();
+            std::string number = readWhile(isDigit);
             return {TokenType::INT, number};
         } else {
             token = {TokenType::ILLEGAL, {ch_}};
@@ -72,17 +71,9 @@ Token Lexer::nextToken() {
     return token;
 }
 
-std::string Lexer::readIdentifier() {
+std::string Lexer::readWhile(bool (*condition)(char)) {
     auto start = position_;
-    while (isLetter(ch_)) {
-        readChar();
-    }
-    return input_.substr(start, position_ - start);
-}
-
-std::string Lexer::readNumber() {
-    auto start = position_;
-    while (isDigit(ch_)) {
+    while (condition(ch_)) {
         readChar();
     }
     return input_.substr(start, position_ - start);

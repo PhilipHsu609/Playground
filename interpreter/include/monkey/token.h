@@ -1,8 +1,9 @@
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 
 namespace monkey {
 
@@ -36,13 +37,16 @@ struct Token {
 inline TokenType lookupIdent(std::string_view ident) {
     using namespace std::literals;
 
-    static const std::unordered_map<std::string_view, TokenType> keywords{
+    constexpr auto keywords = std::to_array<std::pair<std::string_view, TokenType>>({
         {"fn"sv, TokenType::FUNCTION},
         {"let"sv, TokenType::LET},
-    };
+    });
 
-    auto it = keywords.find(ident);
-    if (it != keywords.end()) {
+    const auto *it =
+        std::ranges::lower_bound(keywords, ident, std::ranges::less{},
+                                 &std::pair<std::string_view, TokenType>::first);
+
+    if (it != keywords.end() && it->first == ident) {
         return it->second;
     }
     return TokenType::IDENT;

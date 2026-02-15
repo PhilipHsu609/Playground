@@ -8,16 +8,14 @@
 namespace monkey {
 
 class Lexer {
-public:
+  public:
     explicit Lexer(std::string input) : input_(std::move(input)) { readChar(); }
-
-    void readChar();
     Token nextToken();
 
-private:
-    std::string readIdentifier();
-    std::string readNumber();
+  private:
+    void readChar();
     void skipWhitespace();
+    std::string readWhile(bool (*condition)(char));
 
     std::string input_;
     size_t position_{0};      // current position in input (points to current char)
