@@ -22,6 +22,13 @@ void Lexer::readChar() {
     position_ = read_position_++;
 }
 
+char Lexer::peekChar() const {
+    if (read_position_ >= input_.size()) {
+        return 0; // ASCII code for NUL, signifies end of input
+    }
+    return input_[read_position_];
+}
+
 Token Lexer::nextToken() {
     Token token{};
 
@@ -29,7 +36,12 @@ Token Lexer::nextToken() {
 
     switch (ch_) {
     case '=':
-        token = {TokenType::ASSIGN, "="};
+        if(peekChar() == '=') {
+            readChar(); // consume the second '='
+            token = {TokenType::EQ, "=="};
+        } else {
+            token = {TokenType::ASSIGN, "="};
+        }
         break;
     case '+':
         token = {TokenType::PLUS, "+"};
@@ -38,7 +50,12 @@ Token Lexer::nextToken() {
         token = {TokenType::MINUS, "-"};
         break;
     case '!':
-        token = {TokenType::BANG, "!"};
+        if(peekChar() == '=') {
+            readChar(); // consume the '='
+            token = {TokenType::NOT_EQ, "!="};
+        } else {
+            token = {TokenType::BANG, "!"};
+        }
         break;
     case '*':
         token = {TokenType::ASTERISK, "*"};

@@ -27,6 +27,9 @@ if (5 < 10) {
 } else {
     return false;
 }
+
+10 == 10;
+10 != 9;
 )";
 
     std::vector<Token> expected_tokens{
@@ -70,6 +73,11 @@ if (5 < 10) {
         {TokenType::LBRACE, "{"},    {TokenType::RETURN, "return"},
         {TokenType::FALSE, "false"}, {TokenType::SEMICOLON, ";"},
         {TokenType::RBRACE, "}"},
+
+        {TokenType::INT, "10"},      {TokenType::EQ, "=="},
+        {TokenType::INT, "10"},      {TokenType::SEMICOLON, ";"},
+        {TokenType::INT, "10"},      {TokenType::NOT_EQ, "!="},
+        {TokenType::INT, "9"},       {TokenType::SEMICOLON, ";"},
 
         {TokenType::EOF_, ""},
     };

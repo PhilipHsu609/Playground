@@ -23,6 +23,8 @@ enum class TokenType {
     SLASH,
     LT,
     GT,
+    EQ,
+    NOT_EQ,
     // Delimiters
     COMMA,
     SEMICOLON,
