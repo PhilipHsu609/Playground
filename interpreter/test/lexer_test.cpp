@@ -19,6 +19,9 @@ let add = fn(x, y) {
 };
 
 let result = add(five, ten);
+
+!-/*5;
+5 < 10 > 5;
 )";
 
     std::vector<Token> expected_tokens{
@@ -44,6 +47,14 @@ let result = add(five, ten);
         {TokenType::LPAREN, "("},    {TokenType::IDENT, "five"},
         {TokenType::COMMA, ","},     {TokenType::IDENT, "ten"},
         {TokenType::RPAREN, ")"},    {TokenType::SEMICOLON, ";"},
+
+        {TokenType::BANG, "!"},      {TokenType::MINUS, "-"},
+        {TokenType::SLASH, "/"},     {TokenType::ASTERISK, "*"},
+        {TokenType::INT, "5"},       {TokenType::SEMICOLON, ";"},
+
+        {TokenType::INT, "5"},       {TokenType::LT, "<"},
+        {TokenType::INT, "10"},      {TokenType::GT, ">"},
+        {TokenType::INT, "5"},       {TokenType::SEMICOLON, ";"},
 
         {TokenType::EOF_, ""},
     };

@@ -31,6 +31,27 @@ Token Lexer::nextToken() {
     case '=':
         token = {TokenType::ASSIGN, "="};
         break;
+    case '+':
+        token = {TokenType::PLUS, "+"};
+        break;
+    case '-':
+        token = {TokenType::MINUS, "-"};
+        break;
+    case '!':
+        token = {TokenType::BANG, "!"};
+        break;
+    case '*':
+        token = {TokenType::ASTERISK, "*"};
+        break;
+    case '/':
+        token = {TokenType::SLASH, "/"};
+        break;
+    case '<':
+        token = {TokenType::LT, "<"};
+        break;
+    case '>':
+        token = {TokenType::GT, ">"};
+        break;
     case ';':
         token = {TokenType::SEMICOLON, ";"};
         break;
@@ -48,9 +69,6 @@ Token Lexer::nextToken() {
         break;
     case ',':
         token = {TokenType::COMMA, ","};
-        break;
-    case '+':
-        token = {TokenType::PLUS, "+"};
         break;
     case 0:
         token = {TokenType::EOF_, ""};
