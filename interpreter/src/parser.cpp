@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <utility>
 
 namespace monkey {
@@ -18,6 +19,21 @@ Parser::Parser(std::unique_ptr<Lexer> lexer) : lexer_(std::move(lexer)) {
     // Register prefix parse functions
     registerPrefix(TokenType::IDENT, [this]() -> std::optional<Expression> {
         return Identifier{.token = currentToken_};
+    });
+    registerPrefix(TokenType::INT, [this]() -> std::optional<Expression> {
+        try {
+            auto value = std::stoll(currentToken_.literal);
+            return IntegerLiteral{.token = currentToken_, .value = value};
+        } catch (const std::invalid_argument &e) {
+            auto error =
+                fmt::format("could not parse {} as integer", currentToken_.literal);
+            errors_.push_back(error);
+        } catch (const std::out_of_range &e) {
+            auto error =
+                fmt::format("{} is out of range for int64_t", currentToken_.literal);
+            errors_.push_back(error);
+        }
+        return std::nullopt;
     });
 }
 

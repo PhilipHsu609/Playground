@@ -137,3 +137,40 @@ TEST(ParserTest, IdentifierExpression) {
     EXPECT_EQ(tokenLiteral(*ident), "foobar")
         << "ident.tokenLiteral() not 'foobar'. got=" << tokenLiteral(*ident);
 }
+
+TEST(ParserTest, IntegerLiteralExpression) {
+    std::string input = "5;";
+
+    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto program = parser.parseProgram();
+
+    checkParserErrors(parser);
+
+    if (program == nullptr) {
+        FAIL() << "parseProgram() returned nullptr";
+    }
+
+    if (program->statements.size() != 1) {
+        FAIL() << "program.statements does not contain 1 statement. got="
+               << program->statements.size();
+    }
+
+    const auto &stmt = program->statements[0];
+    const auto *expr_stmt = std::get_if<ExpressionStatement>(&stmt);
+
+    if (expr_stmt == nullptr) {
+        FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
+    }
+
+    const auto *int_literal = std::get_if<IntegerLiteral>(&expr_stmt->expression);
+
+    if (int_literal == nullptr) {
+        FAIL() << "expression not IntegerLiteral. got="
+               << typeid(expr_stmt->expression).name();
+    }
+
+    EXPECT_EQ(tokenLiteral(*int_literal), "5")
+        << "int_literal.tokenLiteral() not '5'. got=" << tokenLiteral(*int_literal);
+    EXPECT_EQ(int_literal->value, 5)
+        << "int_literal.value not 5. got=" << int_literal->value;
+}

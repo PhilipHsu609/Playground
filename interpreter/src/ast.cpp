@@ -13,11 +13,11 @@ std::string tokenLiteral(const Program &program) {
 }
 
 std::string toString(const Expression &expr) {
-    return std::visit(
-        overloaded{
-            [](const Identifier &s) { return tokenLiteral(s); },
-        },
-        expr);
+    return std::visit(overloaded{
+                          [](const Identifier &s) { return tokenLiteral(s); },
+                          [](const IntegerLiteral &s) { return tokenLiteral(s); },
+                      },
+                      expr);
 }
 
 std::string toString(const Statement &stmt) {

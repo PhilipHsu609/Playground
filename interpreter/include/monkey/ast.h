@@ -5,6 +5,7 @@
 #include <fmt/format.h>
 
 #include <concepts>
+#include <cstdint>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -21,7 +22,12 @@ struct Identifier {
     Token token;
 };
 
-using Expression = std::variant<Identifier>;
+struct IntegerLiteral {
+    Token token;
+    int64_t value;
+};
+
+using Expression = std::variant<Identifier, IntegerLiteral>;
 
 // TODO: Recursive expression types definitions
 
