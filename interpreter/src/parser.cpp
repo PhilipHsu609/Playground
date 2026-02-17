@@ -1,4 +1,5 @@
 #include "monkey/parser.h"
+#include "monkey/ast.h"
 
 #include <fmt/format.h>
 #include <magic_enum/magic_enum_format.hpp>
@@ -13,6 +14,11 @@ Parser::Parser(std::unique_ptr<Lexer> lexer) : lexer_(std::move(lexer)) {
     // Initialize currentToken and peekToken
     nextToken();
     nextToken();
+
+    // Register prefix parse functions
+    registerPrefix(TokenType::IDENT, [this]() -> std::optional<Expression> {
+        return Identifier{.token = currentToken_};
+    });
 }
 
 std::unique_ptr<Program> Parser::parseProgram() {
@@ -26,6 +32,14 @@ std::unique_ptr<Program> Parser::parseProgram() {
     }
 
     return program;
+}
+
+void Parser::registerPrefix(TokenType tokenType, PrefixParseFn fn) {
+    prefixParseFns_[tokenType] = std::move(fn);
+}
+
+void Parser::registerInfix(TokenType tokenType, InfixParseFn fn) {
+    infixParseFns_[tokenType] = std::move(fn);
 }
 
 void Parser::nextToken() {
@@ -55,9 +69,8 @@ std::optional<Statement> Parser::parseStatement() {
     case TokenType::RETURN:
         return parseReturnStatement();
     default:
-        break;
+        return parseExpressionStatement();
     }
-    return std::nullopt;
 }
 
 std::optional<Statement> Parser::parseLetStatement() {
@@ -91,6 +104,32 @@ std::optional<Statement> Parser::parseReturnStatement() {
     }
 
     return stmt;
+}
+
+std::optional<Statement> Parser::parseExpressionStatement() {
+    auto stmt = ExpressionStatement{.token = currentToken_, .expression = {}};
+    auto expr = parseExpression(Precedence::LOWEST);
+
+    if (!expr) {
+        return std::nullopt;
+    }
+
+    stmt.expression = std::move(*expr);
+
+    if (peekToken_.type == TokenType::SEMICOLON) {
+        // Optional semicolon, e.g., 5 + 5 in REPL
+        nextToken();
+    }
+
+    return stmt;
+}
+
+std::optional<Expression>
+Parser::parseExpression([[maybe_unused]] Precedence precedence) {
+    if (auto it = prefixParseFns_.find(currentToken_.type); it != prefixParseFns_.end()) {
+        return it->second();
+    }
+    return std::nullopt;
 }
 
 } // namespace monkey

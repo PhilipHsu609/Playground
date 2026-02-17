@@ -102,3 +102,38 @@ return 993322;
         //     << "'. got=" << tokenLiteral(return_stmt->value);
     }
 }
+
+TEST(ParserTest, IdentifierExpression) {
+    std::string input = "foobar;";
+
+    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto program = parser.parseProgram();
+
+    checkParserErrors(parser);
+
+    if (program == nullptr) {
+        FAIL() << "parseProgram() returned nullptr";
+    }
+
+    if (program->statements.size() != 1) {
+        FAIL() << "program.statements does not contain 1 statement. got="
+               << program->statements.size();
+    }
+
+    const auto &stmt = program->statements[0];
+    const auto *expr_stmt = std::get_if<ExpressionStatement>(&stmt);
+
+    if (expr_stmt == nullptr) {
+        FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
+    }
+
+    const auto *ident = std::get_if<Identifier>(&expr_stmt->expression);
+
+    if (ident == nullptr) {
+        FAIL() << "expression not Identifier. got="
+               << typeid(expr_stmt->expression).name();
+    }
+
+    EXPECT_EQ(tokenLiteral(*ident), "foobar")
+        << "ident.tokenLiteral() not 'foobar'. got=" << tokenLiteral(*ident);
+}
