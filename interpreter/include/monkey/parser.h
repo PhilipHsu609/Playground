@@ -41,10 +41,13 @@ class Parser {
     std::optional<Statement> parseReturnStatement();
     std::optional<Statement> parseExpressionStatement();
 
+    std::optional<Expression> parseExpression(Precedence precedence);
+    std::optional<Expression> parseIdentifier();
+    std::optional<Expression> parseIntegerLiteral();
+    std::optional<Expression> parsePrefixExpression();
+
     void registerPrefix(TokenType tokenType, PrefixParseFn fn);
     void registerInfix(TokenType tokenType, InfixParseFn fn);
-
-    std::optional<Expression> parseExpression(Precedence precedence);
 
     std::unique_ptr<Lexer> lexer_;
     Token currentToken_;

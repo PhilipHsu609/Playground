@@ -6,6 +6,7 @@
 
 #include <concepts>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -13,9 +14,37 @@
 
 namespace monkey {
 
-// TODO: Implement Box<T> for recursive data structures
+template <typename T>
+class Box {
+  public:
+    Box(T &&obj) : ptr_(std::make_unique<T>(std::move(obj))) {}
+    Box(const T &obj) : ptr_(std::make_unique<T>(obj)) {}
 
-// TODO: Forward declare Expression and Statement for recursive data structures
+    Box(const Box &other) : Box(*other.ptr_) {}
+    Box &operator=(const Box &other) {
+        if (this == &other) {
+            return *this;
+        }
+        *ptr_ = *other.ptr_;
+        return *this;
+    }
+
+    Box(Box &&) noexcept = default;
+    Box &operator=(Box &&) noexcept = default;
+
+    ~Box() = default;
+
+    T &operator*() { return *ptr_; }
+    const T &operator*() const { return *ptr_; }
+    T *operator->() { return ptr_.get(); }
+    const T *operator->() const { return ptr_.get(); }
+
+  private:
+    std::unique_ptr<T> ptr_;
+};
+
+// Recursive variant types forward declarations
+struct PrefixExpression;
 
 // Leaf expression types definitions
 struct Identifier {
@@ -27,9 +56,14 @@ struct IntegerLiteral {
     int64_t value;
 };
 
-using Expression = std::variant<Identifier, IntegerLiteral>;
+using Expression = std::variant<Identifier, IntegerLiteral, Box<PrefixExpression>>;
 
-// TODO: Recursive expression types definitions
+// Recursive expression types definitions
+struct PrefixExpression {
+    Token token;
+    std::string operator_;
+    Expression right;
+};
 
 // Statement types definitions
 struct LetStatement {
@@ -72,10 +106,20 @@ concept HasToken = requires(const T &t) {
     { t.token } -> std::convertible_to<Token>;
 };
 
+template <typename T>
+struct is_box : std::false_type {};
+
+template <typename T>
+struct is_box<Box<T>> : std::true_type {};
+
+template <typename T>
+concept Boxed = is_box<std::remove_cvref_t<T>>::value;
+
 std::string tokenLiteral(const Program &program);
 std::string tokenLiteral(const HasToken auto &node) { return node.token.literal; }
+std::string tokenLiteral(const Boxed auto &box) { return tokenLiteral(*box); }
 std::string tokenLiteral(const Variant auto &var) {
-    return std::visit([](const auto &s) { return s.token.literal; }, var);
+    return std::visit([](const auto &s) { return tokenLiteral(s); }, var);
 }
 
 template <typename... Ts>

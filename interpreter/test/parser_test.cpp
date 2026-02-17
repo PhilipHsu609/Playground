@@ -5,8 +5,10 @@
 #include <fmt/ranges.h>
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <ranges>
 #include <string>
+#include <tuple>
 #include <vector>
 
 using namespace monkey; // NOLINT(google-build-using-namespace) - for cleaner test code
@@ -173,4 +175,58 @@ TEST(ParserTest, IntegerLiteralExpression) {
         << "int_literal.tokenLiteral() not '5'. got=" << tokenLiteral(*int_literal);
     EXPECT_EQ(int_literal->value, 5)
         << "int_literal.value not 5. got=" << int_literal->value;
+}
+
+TEST(ParserTest, PrefixExpressions) {
+    std::vector<std::tuple<std::string, std::string, int64_t>> prefix_tests = {
+        {"!5;", "!", 5},
+        {"-15;", "-", 15},
+    };
+
+    for (const auto &[input, op, value] : prefix_tests) {
+        auto parser = Parser(std::make_unique<Lexer>(input));
+        auto program = parser.parseProgram();
+
+        checkParserErrors(parser);
+
+        if (program == nullptr) {
+            FAIL() << "parseProgram() returned nullptr";
+        }
+
+        if (program->statements.size() != 1) {
+            FAIL() << "program.statements does not contain 1 statement. got="
+                   << program->statements.size();
+        }
+
+        const auto &stmt = program->statements[0];
+        const auto *expr_stmt = std::get_if<ExpressionStatement>(&stmt);
+
+        if (expr_stmt == nullptr) {
+            FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
+        }
+
+        const auto *prefix_expr =
+            std::get_if<Box<PrefixExpression>>(&expr_stmt->expression);
+
+        if (prefix_expr == nullptr) {
+            FAIL() << "expression not PrefixExpression. got="
+                   << typeid(expr_stmt->expression).name();
+        }
+
+        EXPECT_EQ((*prefix_expr)->operator_, op)
+            << "operator is not '" << op << "'. got=" << (*prefix_expr)->operator_;
+
+        const auto *int_literal = std::get_if<IntegerLiteral>(&(*prefix_expr)->right);
+
+        if (int_literal == nullptr) {
+            FAIL() << "right expression not IntegerLiteral. got="
+                   << typeid((*prefix_expr)->right).name();
+        }
+
+        EXPECT_EQ(tokenLiteral(*int_literal), std::to_string(value))
+            << "int_literal.tokenLiteral() not '" << value
+            << "'. got=" << tokenLiteral(*int_literal);
+        EXPECT_EQ(int_literal->value, value)
+            << "int_literal.value not " << value << ". got=" << int_literal->value;
+    }
 }

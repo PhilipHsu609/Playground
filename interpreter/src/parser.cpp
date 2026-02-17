@@ -17,24 +17,10 @@ Parser::Parser(std::unique_ptr<Lexer> lexer) : lexer_(std::move(lexer)) {
     nextToken();
 
     // Register prefix parse functions
-    registerPrefix(TokenType::IDENT, [this]() -> std::optional<Expression> {
-        return Identifier{.token = currentToken_};
-    });
-    registerPrefix(TokenType::INT, [this]() -> std::optional<Expression> {
-        try {
-            auto value = std::stoll(currentToken_.literal);
-            return IntegerLiteral{.token = currentToken_, .value = value};
-        } catch (const std::invalid_argument &e) {
-            auto error =
-                fmt::format("could not parse {} as integer", currentToken_.literal);
-            errors_.push_back(error);
-        } catch (const std::out_of_range &e) {
-            auto error =
-                fmt::format("{} is out of range for int64_t", currentToken_.literal);
-            errors_.push_back(error);
-        }
-        return std::nullopt;
-    });
+    registerPrefix(TokenType::IDENT, [this]() { return this->parseIdentifier(); });
+    registerPrefix(TokenType::INT, [this]() { return this->parseIntegerLiteral(); });
+    registerPrefix(TokenType::BANG, [this]() { return this->parsePrefixExpression(); });
+    registerPrefix(TokenType::MINUS, [this]() { return this->parsePrefixExpression(); });
 }
 
 std::unique_ptr<Program> Parser::parseProgram() {
@@ -145,7 +131,40 @@ Parser::parseExpression([[maybe_unused]] Precedence precedence) {
     if (auto it = prefixParseFns_.find(currentToken_.type); it != prefixParseFns_.end()) {
         return it->second();
     }
+    auto error =
+        fmt::format("no prefix parse function for {} found", currentToken_.literal);
+    errors_.push_back(error);
     return std::nullopt;
+}
+
+std::optional<Expression> Parser::parseIdentifier() {
+    return Identifier{.token = currentToken_};
+}
+
+std::optional<Expression> Parser::parseIntegerLiteral() {
+    try {
+        auto value = std::stoll(currentToken_.literal);
+        return IntegerLiteral{.token = currentToken_, .value = value};
+    } catch (const std::invalid_argument &e) {
+        auto error = fmt::format("could not parse {} as integer", currentToken_.literal);
+        errors_.push_back(error);
+    } catch (const std::out_of_range &e) {
+        auto error = fmt::format("{} is out of range for int64_t", currentToken_.literal);
+        errors_.push_back(error);
+    }
+    return std::nullopt;
+}
+
+std::optional<Expression> Parser::parsePrefixExpression() {
+    auto expr = PrefixExpression{
+        .token = currentToken_, .operator_ = currentToken_.literal, .right = {}};
+    nextToken();
+    auto right = parseExpression(Precedence::PREFIX);
+    if (!right) {
+        return std::nullopt;
+    }
+    expr.right = std::move(*right);
+    return expr;
 }
 
 } // namespace monkey
