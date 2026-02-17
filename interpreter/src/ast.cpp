@@ -4,12 +4,35 @@
 
 namespace monkey {
 
-std::string Program::tokenLiteral() const {
-    if (statements.empty()) {
+std::string tokenLiteral(const Program &program) {
+    if (program.statements.empty()) {
         return "";
     }
     // Return the token literal of the first statement for simplicity
-    return monkey::tokenLiteral(statements[0]);
+    return monkey::tokenLiteral(program.statements[0]);
+}
+
+std::string toString(const Expression &expr) {
+    return std::visit(
+        overloaded{
+            [](const Identifier &s) { return tokenLiteral(s); },
+        },
+        expr);
+}
+
+std::string toString(const Statement &stmt) {
+    return std::visit(
+        overloaded{
+            [](const LetStatement &s) {
+                return fmt::format("{} {} = {};", tokenLiteral(s), tokenLiteral(s.name),
+                                   toString(s.value));
+            },
+            [](const ReturnStatement &s) {
+                return fmt::format("{} {};", tokenLiteral(s), toString(s.value));
+            },
+            [](const ExpressionStatement &s) { return toString(s.expression); },
+        },
+        stmt);
 }
 
 } // namespace monkey

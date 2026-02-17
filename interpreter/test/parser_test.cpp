@@ -52,11 +52,11 @@ let foobar = 838383;
             FAIL() << "stmt not LetStatement. got=" << typeid(stmt).name();
         }
 
-        EXPECT_EQ(let_stmt->tokenLiteral(), "let")
-            << "let_stmt.tokenLiteral() not 'let'. got=" << let_stmt->tokenLiteral();
-        EXPECT_EQ(let_stmt->name.tokenLiteral(), expected_identifiers[idx])
+        EXPECT_EQ(tokenLiteral(*let_stmt), "let")
+            << "let_stmt.tokenLiteral() not 'let'. got=" << tokenLiteral(*let_stmt);
+        EXPECT_EQ(tokenLiteral(let_stmt->name), expected_identifiers[idx])
             << "let_stmt.name.tokenLiteral() not '" << expected_identifiers[idx]
-            << "'. got=" << let_stmt->name.tokenLiteral();
+            << "'. got=" << tokenLiteral(let_stmt->name);
         // EXPECT_EQ(tokenLiteral(let_stmt->value), expected_values[idx])
         //     << "let_stmt.value not '" << expected_values[idx]
         //     << "'. got=" << tokenLiteral(let_stmt->value);
@@ -94,9 +94,9 @@ return 993322;
             FAIL() << "stmt not ReturnStatement. got=" << typeid(stmt).name();
         }
 
-        EXPECT_EQ(return_stmt->tokenLiteral(), "return")
+        EXPECT_EQ(tokenLiteral(*return_stmt), "return")
             << "return_stmt.tokenLiteral() not 'return'. got="
-            << return_stmt->tokenLiteral();
+            << tokenLiteral(*return_stmt);
         // EXPECT_EQ(tokenLiteral(return_stmt->value), expected_values[idx])
         //     << "return_stmt.value not '" << expected_values[idx]
         //     << "'. got=" << tokenLiteral(return_stmt->value);
