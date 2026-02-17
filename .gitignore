@@ -6,5 +6,6 @@ container/contained
 container/rootfs/
 
 # Editor/LSP caches
+.vscode/
 .cache/
 compile_commands.json

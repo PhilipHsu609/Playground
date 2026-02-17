@@ -23,6 +23,7 @@ class Parser {
     void peekError(TokenType type);
     std::optional<Statement> parseStatement();
     std::optional<Statement> parseLetStatement();
+    std::optional<Statement> parseReturnStatement();
 
     std::unique_ptr<Lexer> lexer_;
     Token currentToken_;

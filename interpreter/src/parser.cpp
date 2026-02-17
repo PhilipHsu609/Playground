@@ -52,6 +52,8 @@ std::optional<Statement> Parser::parseStatement() {
     switch (currentToken_.type) {
     case TokenType::LET:
         return parseLetStatement();
+    case TokenType::RETURN:
+        return parseReturnStatement();
     default:
         break;
     }
@@ -72,6 +74,18 @@ std::optional<Statement> Parser::parseLetStatement() {
     }
 
     // TODO: Skip expressions until we encounter a semicolon
+    while (currentToken_.type != TokenType::SEMICOLON) {
+        nextToken();
+    }
+
+    return stmt;
+}
+
+std::optional<Statement> Parser::parseReturnStatement() {
+    auto stmt = ReturnStatement{.token = currentToken_, .value = {}};
+
+    // TODO: Skip expressions until we encounter a semicolon
+    nextToken();
     while (currentToken_.type != TokenType::SEMICOLON) {
         nextToken();
     }
