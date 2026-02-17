@@ -4,9 +4,12 @@ BUILD_DIR = build
 CMAKE_FLAGS = -DCMAKE_EXPORT_COMPILE_COMMANDS=TRUE -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
               -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
 
-.PHONY: all config build test clean
+.PHONY: all config format build test clean
 
-all: build test
+all: format build test
+
+format:
+	find include src test -name '*.h' -o -name '*.cpp' | xargs clang-format -i
 
 config:
 	cmake $(CMAKE_FLAGS) -S . -B $(BUILD_DIR)

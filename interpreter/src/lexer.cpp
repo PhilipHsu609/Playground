@@ -36,7 +36,7 @@ Token Lexer::nextToken() {
 
     switch (ch_) {
     case '=':
-        if(peekChar() == '=') {
+        if (peekChar() == '=') {
             readChar(); // consume the second '='
             token = {TokenType::EQ, "=="};
         } else {
@@ -50,7 +50,7 @@ Token Lexer::nextToken() {
         token = {TokenType::MINUS, "-"};
         break;
     case '!':
-        if(peekChar() == '=') {
+        if (peekChar() == '=') {
             readChar(); // consume the '='
             token = {TokenType::NOT_EQ, "!="};
         } else {
