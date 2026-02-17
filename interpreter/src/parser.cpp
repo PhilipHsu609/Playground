@@ -26,7 +26,7 @@ Parser::Parser(std::unique_ptr<Lexer> lexer) : lexer_(std::move(lexer)) {
 std::unique_ptr<Program> Parser::parseProgram() {
     auto program = std::make_unique<Program>();
 
-    while (currentToken_.type != TokenType::EOF_) {
+    while (currentToken_.type != TokenType::EOF_TOKEN) {
         if (auto stmt = parseStatement()) {
             program->statements.emplace_back(std::move(*stmt));
         }
@@ -157,7 +157,7 @@ std::optional<Expression> Parser::parseIntegerLiteral() {
 
 std::optional<Expression> Parser::parsePrefixExpression() {
     auto expr = PrefixExpression{
-        .token = currentToken_, .operator_ = currentToken_.literal, .right = {}};
+        .token = currentToken_, .op = currentToken_.literal, .right = {}};
     nextToken();
     auto right = parseExpression(Precedence::PREFIX);
     if (!right) {

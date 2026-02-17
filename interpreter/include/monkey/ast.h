@@ -17,8 +17,12 @@ namespace monkey {
 template <typename T>
 class Box {
   public:
-    Box(T &&obj) : ptr_(std::make_unique<T>(std::move(obj))) {}
-    Box(const T &obj) : ptr_(std::make_unique<T>(obj)) {}
+    Box(T &&obj) // NOLINT(google-explicit-constructor)
+                 // for easier construction of Box<T>
+        : ptr_(std::make_unique<T>(std::move(obj))) {}
+    Box(const T &obj) // NOLINT(google-explicit-constructor)
+                      // for easier construction of Box<T>
+        : ptr_(std::make_unique<T>(obj)) {}
 
     Box(const Box &other) : Box(*other.ptr_) {}
     Box &operator=(const Box &other) {
@@ -61,7 +65,7 @@ using Expression = std::variant<Identifier, IntegerLiteral, Box<PrefixExpression
 // Recursive expression types definitions
 struct PrefixExpression {
     Token token;
-    std::string operator_;
+    std::string op;
     Expression right;
 };
 

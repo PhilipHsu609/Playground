@@ -88,14 +88,14 @@ Token Lexer::nextToken() {
         token = {TokenType::COMMA, ","};
         break;
     case 0:
-        token = {TokenType::EOF_, ""};
+        token = {TokenType::EOF_TOKEN, ""};
         break;
     default:
         if (isLetter(ch_)) {
-            std::string ident = readWhile(isLetter);
+            const std::string ident = readWhile(isLetter);
             return {lookupIdent(ident), ident};
         } else if (isDigit(ch_)) {
-            std::string number = readWhile(isDigit);
+            const std::string number = readWhile(isDigit);
             return {TokenType::INT, number};
         } else {
             token = {TokenType::ILLEGAL, {ch_}};

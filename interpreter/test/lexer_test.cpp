@@ -32,7 +32,7 @@ if (5 < 10) {
 10 != 9;
 )";
 
-    std::vector<Token> expected_tokens{
+    std::vector<Token> expectedTokens{
         {TokenType::LET, "let"},     {TokenType::IDENT, "five"},
         {TokenType::ASSIGN, "="},    {TokenType::INT, "5"},
         {TokenType::SEMICOLON, ";"},
@@ -79,18 +79,18 @@ if (5 < 10) {
         {TokenType::INT, "10"},      {TokenType::NOT_EQ, "!="},
         {TokenType::INT, "9"},       {TokenType::SEMICOLON, ";"},
 
-        {TokenType::EOF_, ""},
+        {TokenType::EOF_TOKEN, ""},
     };
 
     Lexer lexer(input);
 
-    for (const auto &expected_token : expected_tokens) {
+    for (const auto &expectedToken : expectedTokens) {
         Token token = lexer.nextToken();
-        EXPECT_EQ(token.type, expected_token.type)
+        EXPECT_EQ(token.type, expectedToken.type)
             << fmt::format("Token type mismatch: expected '{}', got '{}'",
-                           expected_token.type, token.type);
-        EXPECT_EQ(token.literal, expected_token.literal)
+                           expectedToken.type, token.type);
+        EXPECT_EQ(token.literal, expectedToken.literal)
             << fmt::format("Token literal mismatch: expected '{}', got '{}'",
-                           expected_token.literal, token.literal);
+                           expectedToken.literal, token.literal);
     }
 }

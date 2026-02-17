@@ -10,7 +10,7 @@ namespace monkey {
 enum class TokenType {
     // Special
     ILLEGAL,
-    EOF_,
+    EOF_TOKEN,
     // Identifiers + literals
     IDENT,
     INT,
@@ -43,7 +43,7 @@ enum class TokenType {
 };
 
 struct Token {
-    TokenType type;
+    TokenType type = TokenType::ILLEGAL;
     std::string literal;
 };
 

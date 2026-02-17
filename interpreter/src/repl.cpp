@@ -24,7 +24,7 @@ void start() {
 
         auto lexer = Lexer(line);
 
-        for (Token tok = lexer.nextToken(); tok.type != TokenType::EOF_;
+        for (Token tok = lexer.nextToken(); tok.type != TokenType::EOF_TOKEN;
              tok = lexer.nextToken()) {
             fmt::print("Type: {}, Literal: {}\n", tok.type, tok.literal);
         }

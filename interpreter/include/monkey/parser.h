@@ -25,7 +25,7 @@ enum class Precedence {
 
 class Parser {
   public:
-    Parser(std::unique_ptr<Lexer> lexer);
+    explicit Parser(std::unique_ptr<Lexer> lexer);
     std::unique_ptr<Program> parseProgram();
     const std::vector<std::string> &errors() const { return errors_; }
 

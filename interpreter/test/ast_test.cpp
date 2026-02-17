@@ -16,7 +16,7 @@ TEST(AstTest, ToString) {
 
     Expression expr = Expression{PrefixExpression{
         .token = Token{.type = TokenType::MINUS, .literal = "-"},
-        .operator_ = "-",
+        .op = "-",
         .right = Identifier{.token = Token{.type = TokenType::IDENT, .literal = "5"}},
     }};
 
