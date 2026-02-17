@@ -230,3 +230,102 @@ TEST(ParserTest, PrefixExpressions) {
             << "intLiteral.value not " << value << ". got=" << intLiteral->value;
     }
 }
+
+TEST(ParserTest, InfixExpressions) {
+    std::vector<std::tuple<std::string, int64_t, std::string, int64_t>> infixTests = {
+        {"5 + 5;", 5, "+", 5},   {"5 - 5;", 5, "-", 5},   {"5 * 5;", 5, "*", 5},
+        {"5 / 5;", 5, "/", 5},   {"5 > 5;", 5, ">", 5},   {"5 < 5;", 5, "<", 5},
+        {"5 == 5;", 5, "==", 5}, {"5 != 5;", 5, "!=", 5},
+    };
+
+    for (const auto &[input, leftValue, op, rightValue] : infixTests) {
+        auto parser = Parser(std::make_unique<Lexer>(input));
+        auto program = parser.parseProgram();
+
+        checkParserErrors(parser);
+
+        if (program == nullptr) {
+            FAIL() << "parseProgram() returned nullptr";
+        }
+
+        if (program->statements.size() != 1) {
+            FAIL() << "program.statements does not contain 1 statement. got="
+                   << program->statements.size();
+        }
+
+        const auto &stmt = program->statements[0];
+        const auto *exprStmt = std::get_if<ExpressionStatement>(&stmt);
+
+        if (exprStmt == nullptr) {
+            FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
+        }
+
+        const auto *infixExpr = std::get_if<Box<InfixExpression>>(&exprStmt->expression);
+
+        if (infixExpr == nullptr) {
+            FAIL() << "expression not InfixExpression. got="
+                   << typeid(exprStmt->expression).name();
+        }
+
+        const auto *leftIntLiteral = std::get_if<IntegerLiteral>(&(*infixExpr)->left);
+
+        if (leftIntLiteral == nullptr) {
+            FAIL() << "left expression not IntegerLiteral. got="
+                   << typeid((*infixExpr)->left).name();
+        }
+
+        EXPECT_EQ(tokenLiteral(*leftIntLiteral), std::to_string(leftValue))
+            << "leftIntLiteral.tokenLiteral() not '" << leftValue
+            << "'. got=" << tokenLiteral(*leftIntLiteral);
+        EXPECT_EQ(leftIntLiteral->value, leftValue)
+            << "leftIntLiteral.value not " << leftValue
+            << ". got=" << leftIntLiteral->value;
+
+        EXPECT_EQ((*infixExpr)->op, op)
+            << "operator is not '" << op << "'. got=" << (*infixExpr)->op;
+
+        const auto *rightIntLiteral = std::get_if<IntegerLiteral>(&(*infixExpr)->right);
+
+        if (rightIntLiteral == nullptr) {
+            FAIL() << "right expression not IntegerLiteral. got="
+                   << typeid((*infixExpr)->right).name();
+        }
+
+        EXPECT_EQ(tokenLiteral(*rightIntLiteral), std::to_string(rightValue))
+            << "rightIntLiteral.tokenLiteral() not '" << rightValue
+            << "'. got=" << tokenLiteral(*rightIntLiteral);
+        EXPECT_EQ(rightIntLiteral->value, rightValue)
+            << "rightIntLiteral.value not " << rightValue
+            << ". got=" << rightIntLiteral->value;
+    }
+}
+
+TEST(ParserTest, OperatorPrecedenceParsing) {
+    std::vector<std::tuple<std::string, std::string>> tests = {
+        {"-a * b", "((-a) * b)"},
+        {"!-a", "(!(-a))"},
+        {"a + b + c", "((a + b) + c)"},
+        {"a + b - c", "((a + b) - c)"},
+        {"a * b * c", "((a * b) * c)"},
+        {"a * b / c", "((a * b) / c)"},
+        {"a + b / c", "(a + (b / c))"},
+        {"a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"},
+        {"3 + 4; -5 * 5", "(3 + 4)((-5) * 5)"},
+        {"5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"},
+        {"5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"},
+    };
+
+    for (const auto &[input, expected] : tests) {
+        auto parser = Parser(std::make_unique<Lexer>(input));
+        auto program = parser.parseProgram();
+
+        checkParserErrors(parser);
+
+        if (program == nullptr) {
+            FAIL() << "parseProgram() returned nullptr";
+        }
+
+        EXPECT_EQ(toString(*program), expected)
+            << "expected=" << expected << ", got=" << toString(*program);
+    }
+}

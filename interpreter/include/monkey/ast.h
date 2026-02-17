@@ -49,6 +49,7 @@ class Box {
 
 // Recursive variant types forward declarations
 struct PrefixExpression;
+struct InfixExpression;
 
 // Leaf expression types definitions
 struct Identifier {
@@ -60,11 +61,19 @@ struct IntegerLiteral {
     int64_t value;
 };
 
-using Expression = std::variant<Identifier, IntegerLiteral, Box<PrefixExpression>>;
+using Expression =
+    std::variant<Identifier, IntegerLiteral, Box<PrefixExpression>, Box<InfixExpression>>;
 
 // Recursive expression types definitions
 struct PrefixExpression {
     Token token;
+    std::string op;
+    Expression right;
+};
+
+struct InfixExpression {
+    Token token;
+    Expression left;
     std::string op;
     Expression right;
 };
@@ -131,6 +140,7 @@ struct overloaded : Ts... {
     using Ts::operator()...;
 };
 
+std::string toString(const Program &program);
 std::string toString(const Expression &expr);
 std::string toString(const Statement &stmt);
 

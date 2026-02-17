@@ -7,9 +7,17 @@
 #include <memory>
 #include <optional>
 #include <stdexcept>
+#include <unordered_map>
 #include <utility>
 
 namespace monkey {
+
+const static std::unordered_map<TokenType, Precedence> PRECEDENCES = {
+    {TokenType::EQ, Precedence::EQUALS},      {TokenType::NOT_EQ, Precedence::EQUALS},
+    {TokenType::LT, Precedence::LESSGREATER}, {TokenType::GT, Precedence::LESSGREATER},
+    {TokenType::PLUS, Precedence::SUM},       {TokenType::MINUS, Precedence::SUM},
+    {TokenType::SLASH, Precedence::PRODUCT},  {TokenType::ASTERISK, Precedence::PRODUCT},
+};
 
 Parser::Parser(std::unique_ptr<Lexer> lexer) : lexer_(std::move(lexer)) {
     // Initialize currentToken and peekToken
@@ -21,6 +29,19 @@ Parser::Parser(std::unique_ptr<Lexer> lexer) : lexer_(std::move(lexer)) {
     registerPrefix(TokenType::INT, [this]() { return this->parseIntegerLiteral(); });
     registerPrefix(TokenType::BANG, [this]() { return this->parsePrefixExpression(); });
     registerPrefix(TokenType::MINUS, [this]() { return this->parsePrefixExpression(); });
+
+    // Register infix parse functions
+    auto infixParseFn = [this](Expression left) {
+        return this->parseInfixExpression(std::move(left));
+    };
+    registerInfix(TokenType::PLUS, infixParseFn);
+    registerInfix(TokenType::MINUS, infixParseFn);
+    registerInfix(TokenType::SLASH, infixParseFn);
+    registerInfix(TokenType::ASTERISK, infixParseFn);
+    registerInfix(TokenType::EQ, infixParseFn);
+    registerInfix(TokenType::NOT_EQ, infixParseFn);
+    registerInfix(TokenType::LT, infixParseFn);
+    registerInfix(TokenType::GT, infixParseFn);
 }
 
 std::unique_ptr<Program> Parser::parseProgram() {
@@ -62,6 +83,20 @@ void Parser::peekError(TokenType type) {
     auto error = fmt::format("expected next token to be {}, got {} instead", type,
                              peekToken_.type);
     errors_.push_back(error);
+}
+
+Precedence Parser::peekPrecedence() const {
+    if (auto it = PRECEDENCES.find(peekToken_.type); it != PRECEDENCES.end()) {
+        return it->second;
+    }
+    return Precedence::LOWEST;
+}
+
+Precedence Parser::currentPrecedence() const {
+    if (auto it = PRECEDENCES.find(currentToken_.type); it != PRECEDENCES.end()) {
+        return it->second;
+    }
+    return Precedence::LOWEST;
 }
 
 std::optional<Statement> Parser::parseStatement() {
@@ -126,15 +161,48 @@ std::optional<Statement> Parser::parseExpressionStatement() {
     return stmt;
 }
 
-std::optional<Expression>
-Parser::parseExpression([[maybe_unused]] Precedence precedence) {
-    if (auto it = prefixParseFns_.find(currentToken_.type); it != prefixParseFns_.end()) {
-        return it->second();
+std::optional<Expression> Parser::parseExpression(Precedence precedence) {
+    // Use the expression -5 + 5 * 10 as an example to understand how this works
+
+    // 1. We start with the first token, which is '-'.
+    auto prefixParseFnIt = prefixParseFns_.find(currentToken_.type);
+    if (prefixParseFnIt == prefixParseFns_.end()) {
+        auto error =
+            fmt::format("no prefix parse function for {} found", currentToken_.literal);
+        errors_.push_back(error);
+        return std::nullopt;
     }
-    auto error =
-        fmt::format("no prefix parse function for {} found", currentToken_.literal);
-    errors_.push_back(error);
-    return std::nullopt;
+
+    // We look up the prefix parse function for '-' and call it,
+    // which returns a PrefixExpression with the right side being an IntegerLiteral and
+    // consumes both the token '-' and the token '5'.
+    auto leftExpr = prefixParseFnIt->second();
+    if (!leftExpr) {
+        return std::nullopt;
+    }
+
+    // 2. Now we look at the next token, which is '+'.
+    // We check if its precedence is higher than the current precedence (LOWEST).
+    while (peekToken_.type != TokenType::SEMICOLON && precedence < peekPrecedence()) {
+        // 3. Since '+' has higher precedence than LOWEST, we look up its infix parse
+        // function.
+        auto infixParseFnIt = infixParseFns_.find(peekToken_.type);
+        if (infixParseFnIt == infixParseFns_.end()) {
+            return leftExpr;
+        }
+        // 4. We consume the '+' token (make it current) and parse the right side of the expression.
+        nextToken();
+        auto newLeftExpr = infixParseFnIt->second(std::move(*leftExpr));
+        if (!newLeftExpr) {
+            return std::nullopt;
+        }
+        // 5. The infix parse function returns a new expression that combines the left and
+        // right sides with the operator, e.g., left(-5) + right(5 * 10). We then repeat
+        // the process, now using this new expression as the left side.
+        leftExpr = std::move(newLeftExpr);
+    }
+
+    return leftExpr;
 }
 
 std::optional<Expression> Parser::parseIdentifier() {
@@ -160,6 +228,21 @@ std::optional<Expression> Parser::parsePrefixExpression() {
         .token = currentToken_, .op = currentToken_.literal, .right = {}};
     nextToken();
     auto right = parseExpression(Precedence::PREFIX);
+    if (!right) {
+        return std::nullopt;
+    }
+    expr.right = std::move(*right);
+    return expr;
+}
+
+std::optional<Expression> Parser::parseInfixExpression(Expression left) {
+    auto expr = InfixExpression{.token = currentToken_,
+                                .left = std::move(left),
+                                .op = currentToken_.literal,
+                                .right = {}};
+    auto precedence = currentPrecedence();
+    nextToken();
+    auto right = parseExpression(precedence);
     if (!right) {
         return std::nullopt;
     }

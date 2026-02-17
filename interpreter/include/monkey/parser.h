@@ -36,6 +36,10 @@ class Parser {
     void nextToken();
     bool expectPeek(TokenType type);
     void peekError(TokenType type);
+
+    Precedence peekPrecedence() const;
+    Precedence currentPrecedence() const;
+
     std::optional<Statement> parseStatement();
     std::optional<Statement> parseLetStatement();
     std::optional<Statement> parseReturnStatement();
@@ -45,6 +49,7 @@ class Parser {
     std::optional<Expression> parseIdentifier();
     std::optional<Expression> parseIntegerLiteral();
     std::optional<Expression> parsePrefixExpression();
+    std::optional<Expression> parseInfixExpression(Expression left);
 
     void registerPrefix(TokenType tokenType, PrefixParseFn fn);
     void registerInfix(TokenType tokenType, InfixParseFn fn);
