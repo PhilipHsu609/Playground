@@ -27,18 +27,21 @@ FetchContent_Declare(
     fmt
     GIT_REPOSITORY https://github.com/fmtlib/fmt.git
     GIT_TAG 11.1.4
+    SYSTEM
 )
 
 FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
     GIT_TAG v1.15.2
+    SYSTEM
 )
 
 FetchContent_Declare(
     magic_enum
     GIT_REPOSITORY https://github.com/Neargye/magic_enum.git
     GIT_TAG v0.9.7
+    SYSTEM
 )
 
 FetchContent_MakeAvailable(fmt googletest magic_enum)
