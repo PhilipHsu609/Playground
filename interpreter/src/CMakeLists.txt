@@ -4,7 +4,9 @@ add_library(monkey_lib STATIC)
 target_sources(
     monkey_lib
     PRIVATE
+    ast.cpp
     lexer.cpp
+    parser.cpp
     repl.cpp
 )
 

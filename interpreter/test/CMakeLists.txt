@@ -7,6 +7,7 @@ target_sources(
     ${TEST_TARGET}
     PRIVATE
     lexer_test.cpp
+    parser_test.cpp
 )
 
 target_link_libraries(
