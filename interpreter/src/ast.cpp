@@ -21,19 +21,28 @@ std::string toString(const Program &program) {
 }
 
 std::string toString(const Expression &expr) {
-    return std::visit(overloaded{
-                          [](const Identifier &s) { return tokenLiteral(s); },
-                          [](const IntegerLiteral &s) { return tokenLiteral(s); },
-                          [](const BooleanLiteral &s) { return tokenLiteral(s); },
-                          [](const Box<PrefixExpression> &s) {
-                              return fmt::format("({}{})", s->op, toString(s->right));
-                          },
-                          [](const Box<InfixExpression> &s) {
-                              return fmt::format("({} {} {})", toString(s->left), s->op,
-                                                 toString(s->right));
-                          },
-                      },
-                      expr);
+    return std::visit(
+        overloaded{
+            [](const Identifier &s) { return tokenLiteral(s); },
+            [](const IntegerLiteral &s) { return tokenLiteral(s); },
+            [](const BooleanLiteral &s) { return tokenLiteral(s); },
+            [](const Box<PrefixExpression> &s) {
+                return fmt::format("({}{})", s->op, toString(s->right));
+            },
+            [](const Box<InfixExpression> &s) {
+                return fmt::format("({} {} {})", toString(s->left), s->op,
+                                   toString(s->right));
+            },
+            [](const Box<IfExpression> &s) {
+                std::string result = fmt::format("if {} {{ {} }}", toString(s->condition),
+                                                 toString(s->consequence));
+                if (s->alternative) {
+                    result += fmt::format(" else {{ {} }}", toString(*s->alternative));
+                }
+                return result;
+            },
+        },
+        expr);
 }
 
 std::string toString(const Statement &stmt) {
@@ -47,6 +56,13 @@ std::string toString(const Statement &stmt) {
                 return fmt::format("{} {};", tokenLiteral(s), toString(s.value));
             },
             [](const ExpressionStatement &s) { return toString(s.expression); },
+            [](const BlockStatement &s) {
+                std::string result;
+                for (const auto &stmt : s.statements) {
+                    result += toString(stmt);
+                }
+                return result;
+            },
         },
         stmt);
 }

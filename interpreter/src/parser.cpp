@@ -33,6 +33,7 @@ Parser::Parser(std::unique_ptr<Lexer> lexer) : lexer_(std::move(lexer)) {
     registerPrefix(TokenType::MINUS, [this]() { return this->parsePrefixExpression(); });
     registerPrefix(TokenType::LPAREN,
                    [this]() { return this->parseGroupedExpression(); });
+    registerPrefix(TokenType::IF, [this]() { return this->parseIfExpression(); });
 
     // Register infix parse functions
     auto infixParseFn = [this](Expression left) {
@@ -165,6 +166,20 @@ std::optional<Statement> Parser::parseExpressionStatement() {
     return stmt;
 }
 
+std::optional<BlockStatement> Parser::parseBlockStatement() {
+    auto block = BlockStatement{.token = currentToken_, .statements = {}};
+
+    nextToken();
+    while (currentToken_.type != TokenType::RBRACE &&
+           currentToken_.type != TokenType::EOF_TOKEN) {
+        if (auto stmt = parseStatement()) {
+            block.statements.emplace_back(std::move(*stmt));
+        }
+        nextToken();
+    }
+    return block;
+}
+
 std::optional<Expression> Parser::parseExpression(Precedence precedence) {
     // Use the expression -5 + 5 * 10 as an example to understand how this works
 
@@ -269,6 +284,54 @@ std::optional<Expression> Parser::parseGroupedExpression() {
     if (!expectPeek(TokenType::RPAREN)) {
         return std::nullopt;
     }
+    return expr;
+}
+
+std::optional<Expression> Parser::parseIfExpression() {
+    auto expr = IfExpression{.token = currentToken_,
+                             .condition = {},
+                             .consequence = {},
+                             .alternative = std::nullopt};
+
+    if (!expectPeek(TokenType::LPAREN)) {
+        return std::nullopt;
+    }
+
+    nextToken();
+    auto condition = parseExpression(Precedence::LOWEST);
+    if (!condition) {
+        return std::nullopt;
+    }
+    expr.condition = std::move(*condition);
+
+    if (!expectPeek(TokenType::RPAREN)) {
+        return std::nullopt;
+    }
+
+    if (!expectPeek(TokenType::LBRACE)) {
+        return std::nullopt;
+    }
+
+    auto consequence = parseBlockStatement();
+    if (!consequence) {
+        return std::nullopt;
+    }
+    expr.consequence = std::move(*consequence);
+
+    if (peekToken_.type == TokenType::ELSE) {
+        nextToken();
+
+        if (!expectPeek(TokenType::LBRACE)) {
+            return std::nullopt;
+        }
+
+        auto alternative = parseBlockStatement();
+        if (!alternative) {
+            return std::nullopt;
+        }
+        expr.alternative = std::move(*alternative);
+    }
+
     return expr;
 }
 

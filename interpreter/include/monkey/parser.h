@@ -44,6 +44,7 @@ class Parser {
     std::optional<Statement> parseLetStatement();
     std::optional<Statement> parseReturnStatement();
     std::optional<Statement> parseExpressionStatement();
+    std::optional<BlockStatement> parseBlockStatement();
 
     std::optional<Expression> parseExpression(Precedence precedence);
     std::optional<Expression> parseIdentifier();
@@ -52,6 +53,7 @@ class Parser {
     std::optional<Expression> parsePrefixExpression();
     std::optional<Expression> parseInfixExpression(Expression left);
     std::optional<Expression> parseGroupedExpression();
+    std::optional<Expression> parseIfExpression();
 
     void registerPrefix(TokenType tokenType, PrefixParseFn fn);
     void registerInfix(TokenType tokenType, InfixParseFn fn);

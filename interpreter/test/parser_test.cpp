@@ -378,6 +378,8 @@ TEST(ParserTest, OperatorPrecedenceParsing) {
         {"2 / (5 + 5)", "(2 / (5 + 5))"},
         {"-(5 + 5)", "(-(5 + 5))"},
         {"!(true == true)", "(!(true == true))"},
+        {"if (3 > 5) { 10 } else { 20 }", "if (3 > 5) { 10 } else { 20 }"},
+        {"if (3 > 5) { 10 }", "if (3 > 5) { 10 }"},
     };
 
     for (const auto &[input, expected] : tests) {
@@ -393,4 +395,118 @@ TEST(ParserTest, OperatorPrecedenceParsing) {
         EXPECT_EQ(toString(*program), expected)
             << "expected=" << expected << ", got=" << toString(*program);
     }
+}
+
+TEST(ParserTest, IfExpression) {
+    std::string input = "if (x < y) { x }";
+
+    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto program = parser.parseProgram();
+
+    checkParserErrors(parser);
+
+    if (program == nullptr) {
+        FAIL() << "parseProgram() returned nullptr";
+    }
+
+    if (program->statements.size() != 1) {
+        FAIL() << "program.statements does not contain 1 statement. got="
+               << program->statements.size();
+    }
+
+    const auto &stmt = program->statements[0];
+    const auto *exprStmt = std::get_if<ExpressionStatement>(&stmt);
+
+    if (exprStmt == nullptr) {
+        FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
+    }
+
+    const auto *boxIfExpr = std::get_if<Box<IfExpression>>(&exprStmt->expression);
+    if (boxIfExpr == nullptr) {
+        FAIL() << "expression not IfExpression. got="
+               << typeid(exprStmt->expression).name();
+    }
+
+    const auto &ifExpr = *boxIfExpr;
+    testInfixExpression(ifExpr->condition, "x", "<", "y");
+
+    if (ifExpr->consequence.statements.size() != 1) {
+        FAIL() << "consequence is not 1 statement. got="
+               << ifExpr->consequence.statements.size();
+    }
+
+    const auto &consequenceStmt = ifExpr->consequence.statements[0];
+    const auto *consequenceExprStmt = std::get_if<ExpressionStatement>(&consequenceStmt);
+
+    if (consequenceExprStmt == nullptr) {
+        FAIL() << "consequence stmt not ExpressionStatement. got="
+               << typeid(consequenceStmt).name();
+    }
+
+    testIdentifier(consequenceExprStmt->expression, "x");
+
+    EXPECT_FALSE(ifExpr->alternative.has_value()) << "alternative was not null";
+}
+
+TEST(ParserTest, IfElseExpression) {
+    std::string input = "if (x < y) { x } else { y }";
+
+    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto program = parser.parseProgram();
+
+    checkParserErrors(parser);
+
+    if (program == nullptr) {
+        FAIL() << "parseProgram() returned nullptr";
+    }
+
+    if (program->statements.size() != 1) {
+        FAIL() << "program.statements does not contain 1 statement. got="
+               << program->statements.size();
+    }
+
+    const auto &stmt = program->statements[0];
+    const auto *exprStmt = std::get_if<ExpressionStatement>(&stmt);
+
+    if (exprStmt == nullptr) {
+        FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
+    }
+
+    const auto *boxIfExpr = std::get_if<Box<IfExpression>>(&exprStmt->expression);
+    if (boxIfExpr == nullptr) {
+        FAIL() << "expression not IfExpression. got="
+               << typeid(exprStmt->expression).name();
+    }
+
+    const auto &ifExpr = *boxIfExpr;
+    testInfixExpression(ifExpr->condition, "x", "<", "y");
+
+    if (ifExpr->consequence.statements.size() != 1) {
+        FAIL() << "consequence is not 1 statement. got="
+               << ifExpr->consequence.statements.size();
+    }
+
+    const auto &consequenceStmt = ifExpr->consequence.statements[0];
+    const auto *consequenceExprStmt = std::get_if<ExpressionStatement>(&consequenceStmt);
+
+    if (consequenceExprStmt == nullptr) {
+        FAIL() << "consequence stmt not ExpressionStatement. got="
+               << typeid(consequenceStmt).name();
+    }
+
+    testIdentifier(consequenceExprStmt->expression, "x");
+
+    if (!ifExpr->alternative) {
+        FAIL() << "alternative was null";
+    }
+
+    const auto &alternativeStmt = ifExpr->alternative->statements[0];
+    const auto *alternativeExprStmt = std::get_if<ExpressionStatement>(&alternativeStmt);
+
+    if (alternativeExprStmt == nullptr) {
+        FAIL() << "alternative stmt not ExpressionStatement. got="
+               << typeid(alternativeStmt).name();
+    }
+
+    testIdentifier(alternativeExprStmt->expression, "y");
 }

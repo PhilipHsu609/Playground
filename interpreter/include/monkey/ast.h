@@ -50,6 +50,8 @@ class Box {
 // Recursive variant types forward declarations
 struct PrefixExpression;
 struct InfixExpression;
+struct IfExpression;
+struct BlockStatement;
 
 // Leaf expression types definitions
 struct Identifier {
@@ -66,8 +68,9 @@ struct BooleanLiteral {
     bool value = false;
 };
 
-using Expression = std::variant<Identifier, IntegerLiteral, BooleanLiteral,
-                                Box<PrefixExpression>, Box<InfixExpression>>;
+using Expression =
+    std::variant<Identifier, IntegerLiteral, BooleanLiteral, Box<PrefixExpression>,
+                 Box<InfixExpression>, Box<IfExpression>>;
 
 // Recursive expression types definitions
 struct PrefixExpression {
@@ -102,7 +105,20 @@ struct ExpressionStatement {
     Expression expression;
 };
 
-using Statement = std::variant<LetStatement, ReturnStatement, ExpressionStatement>;
+using Statement =
+    std::variant<LetStatement, ReturnStatement, ExpressionStatement, BlockStatement>;
+
+struct BlockStatement {
+    Token token; // The { token
+    std::vector<Statement> statements;
+};
+
+struct IfExpression {
+    Token token;
+    Expression condition;
+    BlockStatement consequence;
+    std::optional<BlockStatement> alternative;
+};
 
 // Program is the root node of the AST
 struct Program {
