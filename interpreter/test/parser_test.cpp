@@ -108,8 +108,8 @@ void testInfixExpression(const Expression &expr, const Literal &leftValue,
 TEST(ParserTest, LetStatements) {
     std::string input = R"(
 let x = 5;
-let y = 10;
-let foobar = 838383;
+let y = true;
+let foobar = y;
 )";
 
     auto parser = Parser(std::make_unique<Lexer>(input));
@@ -127,7 +127,7 @@ let foobar = 838383;
     }
 
     std::vector<std::string> expectedIdentifiers{"x", "y", "foobar"};
-    // std::vector<std::string> expected_values{"5", "10", "838383"};
+    std::vector<Literal> expectedValues{5, true, "y"};
 
     for (const auto &[i, stmt] : std::views::enumerate(program->statements)) {
         auto idx = static_cast<size_t>(i);
@@ -138,13 +138,10 @@ let foobar = 838383;
         }
 
         EXPECT_EQ(tokenLiteral(*letStmt), "let")
-            << "let_stmt.tokenLiteral() not 'let'. got=" << tokenLiteral(*letStmt);
+            << "letStmt.tokenLiteral() not 'let'. got=" << tokenLiteral(*letStmt);
 
         testIdentifier(letStmt->name, expectedIdentifiers[idx]);
-
-        // EXPECT_EQ(tokenLiteral(let_stmt->value), expected_values[idx])
-        //     << "let_stmt.value not '" << expected_values[idx]
-        //     << "'. got=" << tokenLiteral(let_stmt->value);
+        testLiteralExpression(letStmt->value, expectedValues[idx]);
     }
 }
 
@@ -169,10 +166,10 @@ return 993322;
                << program->statements.size();
     }
 
-    // std::vector<std::string> expected_values{"5", "10", "993322"};
+    std::vector<Literal> expectedValues{5, 10, 993322};
 
     for (const auto &[i, stmt] : std::views::enumerate(program->statements)) {
-        // auto idx = static_cast<size_t>(i);
+        auto idx = static_cast<size_t>(i);
         const auto *returnStmt = std::get_if<ReturnStatement>(&stmt);
 
         if (returnStmt == nullptr) {
@@ -180,11 +177,9 @@ return 993322;
         }
 
         EXPECT_EQ(tokenLiteral(*returnStmt), "return")
-            << "return_stmt.tokenLiteral() not 'return'. got="
+            << "returnStmt.tokenLiteral() not 'return'. got="
             << tokenLiteral(*returnStmt);
-        // EXPECT_EQ(tokenLiteral(returnStmt->value), expected_values[idx])
-        //     << "return_stmt.value not '" << expected_values[idx]
-        //     << "'. got=" << tokenLiteral(returnStmt->value);
+        testLiteralExpression(returnStmt->value, expectedValues[idx]);
     }
 }
 

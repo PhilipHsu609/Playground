@@ -135,8 +135,14 @@ std::optional<Statement> Parser::parseLetStatement() {
         return std::nullopt;
     }
 
-    // TODO: Skip expressions until we encounter a semicolon
-    while (currentToken_.type != TokenType::SEMICOLON) {
+    nextToken();
+    auto value = parseExpression(Precedence::LOWEST);
+    if (!value) {
+        return std::nullopt;
+    }
+    stmt.value = std::move(*value);
+
+    if (peekToken_.type == TokenType::SEMICOLON) {
         nextToken();
     }
 
@@ -146,9 +152,14 @@ std::optional<Statement> Parser::parseLetStatement() {
 std::optional<Statement> Parser::parseReturnStatement() {
     auto stmt = ReturnStatement{.token = currentToken_, .value = {}};
 
-    // TODO: Skip expressions until we encounter a semicolon
     nextToken();
-    while (currentToken_.type != TokenType::SEMICOLON) {
+    auto value = parseExpression(Precedence::LOWEST);
+    if (!value) {
+        return std::nullopt;
+    }
+    stmt.value = std::move(*value);
+
+    if (peekToken_.type == TokenType::SEMICOLON) {
         nextToken();
     }
 
