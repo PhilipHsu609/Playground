@@ -51,6 +51,7 @@ class Parser {
     std::optional<Expression> parseIntegerLiteral();
     std::optional<Expression> parsePrefixExpression();
     std::optional<Expression> parseInfixExpression(Expression left);
+    std::optional<Expression> parseGroupedExpression();
 
     void registerPrefix(TokenType tokenType, PrefixParseFn fn);
     void registerInfix(TokenType tokenType, InfixParseFn fn);

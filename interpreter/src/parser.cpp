@@ -31,6 +31,8 @@ Parser::Parser(std::unique_ptr<Lexer> lexer) : lexer_(std::move(lexer)) {
     registerPrefix(TokenType::FALSE, [this]() { return this->parseBoolean(); });
     registerPrefix(TokenType::BANG, [this]() { return this->parsePrefixExpression(); });
     registerPrefix(TokenType::MINUS, [this]() { return this->parsePrefixExpression(); });
+    registerPrefix(TokenType::LPAREN,
+                   [this]() { return this->parseGroupedExpression(); });
 
     // Register infix parse functions
     auto infixParseFn = [this](Expression left) {
@@ -255,6 +257,18 @@ std::optional<Expression> Parser::parseInfixExpression(Expression left) {
         return std::nullopt;
     }
     expr.right = std::move(*right);
+    return expr;
+}
+
+std::optional<Expression> Parser::parseGroupedExpression() {
+    nextToken();
+    auto expr = parseExpression(Precedence::LOWEST);
+    if (!expr) {
+        return std::nullopt;
+    }
+    if (!expectPeek(TokenType::RPAREN)) {
+        return std::nullopt;
+    }
     return expr;
 }
 
