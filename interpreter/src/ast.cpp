@@ -24,6 +24,7 @@ std::string toString(const Expression &expr) {
     return std::visit(overloaded{
                           [](const Identifier &s) { return tokenLiteral(s); },
                           [](const IntegerLiteral &s) { return tokenLiteral(s); },
+                          [](const BooleanLiteral &s) { return tokenLiteral(s); },
                           [](const Box<PrefixExpression> &s) {
                               return fmt::format("({}{})", s->op, toString(s->right));
                           },

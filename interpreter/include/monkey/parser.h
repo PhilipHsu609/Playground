@@ -47,6 +47,7 @@ class Parser {
 
     std::optional<Expression> parseExpression(Precedence precedence);
     std::optional<Expression> parseIdentifier();
+    std::optional<Expression> parseBoolean();
     std::optional<Expression> parseIntegerLiteral();
     std::optional<Expression> parsePrefixExpression();
     std::optional<Expression> parseInfixExpression(Expression left);

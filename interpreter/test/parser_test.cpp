@@ -6,10 +6,12 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <ios>
 #include <ranges>
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <variant>
 #include <vector>
 
 using namespace monkey;
@@ -27,6 +29,8 @@ void checkParserErrors(const Parser &parser) {
            << fmt::format("{}", fmt::join(errors, "\n"));
 }
 
+using Literal = std::variant<int64_t, bool, std::string>;
+
 void testIntegerLiteral(const Expression &expr, int64_t value) {
     const auto *intLiteral = std::get_if<IntegerLiteral>(&expr);
 
@@ -39,6 +43,21 @@ void testIntegerLiteral(const Expression &expr, int64_t value) {
         << "'. got=" << tokenLiteral(*intLiteral);
     EXPECT_EQ(intLiteral->value, value)
         << "intLiteral.value not " << value << ". got=" << intLiteral->value;
+}
+
+void testBooleanLiteral(const Expression &expr, bool value) {
+    const auto *boolLiteral = std::get_if<BooleanLiteral>(&expr);
+
+    if (boolLiteral == nullptr) {
+        FAIL() << "expression not BooleanLiteral. got=" << typeid(expr).name();
+    }
+
+    EXPECT_EQ(tokenLiteral(*boolLiteral), value ? "true" : "false")
+        << "boolLiteral.tokenLiteral() not '" << (value ? "true" : "false")
+        << "'. got=" << tokenLiteral(*boolLiteral);
+    EXPECT_EQ(boolLiteral->value, value)
+        << "boolLiteral.value not " << std::boolalpha << value
+        << ". got=" << std::boolalpha << boolLiteral->value;
 }
 
 void testIdentifier(const Expression &expr, const std::string &value) {
@@ -56,17 +75,22 @@ void testLiteralExpression(const Expression &expr, auto &&expected) {
     using T = std::decay_t<decltype(expected)>;
     if constexpr (std::is_same_v<T, int64_t>) {
         testIntegerLiteral(expr, expected);
+    } else if constexpr (std::is_same_v<T, bool>) {
+        testBooleanLiteral(expr, expected);
     } else if constexpr (std::is_integral_v<T>) {
         testIntegerLiteral(expr, static_cast<int64_t>(expected));
     } else if constexpr (std::is_convertible_v<T, std::string>) {
         testIdentifier(expr, expected);
+    } else if constexpr (std::is_same_v<T, Literal>) {
+        std::visit([&](const auto &literal) { testLiteralExpression(expr, literal); },
+                   expected);
     } else {
         static_assert(always_false<T>, "unsupported literal type");
     }
 }
 
-void testInfixExpression(const Expression &expr, const auto &leftValue,
-                         const std::string &op, const auto &rightValue) {
+void testInfixExpression(const Expression &expr, const Literal &leftValue,
+                         const std::string &op, const Literal &rightValue) {
     const auto *infixExpr = std::get_if<Box<InfixExpression>>(&expr);
 
     if (infixExpr == nullptr) {
@@ -218,10 +242,39 @@ TEST(ParserTest, IntegerLiteralExpression) {
     testIntegerLiteral(exprStmt->expression, 5);
 }
 
+TEST(ParserTest, BooleanLiteralExpression) {
+    std::string input = "true;";
+
+    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto program = parser.parseProgram();
+
+    checkParserErrors(parser);
+
+    if (program == nullptr) {
+        FAIL() << "parseProgram() returned nullptr";
+    }
+
+    if (program->statements.size() != 1) {
+        FAIL() << "program.statements does not contain 1 statement. got="
+               << program->statements.size();
+    }
+
+    const auto &stmt = program->statements[0];
+    const auto *exprStmt = std::get_if<ExpressionStatement>(&stmt);
+
+    if (exprStmt == nullptr) {
+        FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
+    }
+
+    testBooleanLiteral(exprStmt->expression, true);
+}
+
 TEST(ParserTest, PrefixExpressions) {
-    std::vector<std::tuple<std::string, std::string, int64_t>> prefixTests = {
+    std::vector<std::tuple<std::string, std::string, Literal>> prefixTests = {
         {"!5;", "!", 5},
         {"-15;", "-", 15},
+        {"!true;", "!", true},
+        {"!false;", "!", false},
     };
 
     for (const auto &[input, op, value] : prefixTests) {
@@ -257,15 +310,24 @@ TEST(ParserTest, PrefixExpressions) {
         EXPECT_EQ((*prefixExpr)->op, op)
             << "operator is not '" << op << "'. got=" << (*prefixExpr)->op;
 
-        testIntegerLiteral((*prefixExpr)->right, value);
+        testLiteralExpression((*prefixExpr)->right, value);
     }
 }
 
 TEST(ParserTest, InfixExpressions) {
-    std::vector<std::tuple<std::string, int64_t, std::string, int64_t>> infixTests = {
-        {"5 + 5;", 5, "+", 5},   {"5 - 5;", 5, "-", 5},   {"5 * 5;", 5, "*", 5},
-        {"5 / 5;", 5, "/", 5},   {"5 > 5;", 5, ">", 5},   {"5 < 5;", 5, "<", 5},
-        {"5 == 5;", 5, "==", 5}, {"5 != 5;", 5, "!=", 5},
+    std::vector<std::tuple<std::string, Literal, std::string, Literal>> infixTests = {
+        {"5 + 5;", 5, "+", 5},
+        {"5 - 5;", 5, "-", 5},
+        {"5 * 5;", 5, "*", 5},
+        {"5 / 5;", 5, "/", 5},
+        {"5 > 5;", 5, ">", 5},
+        {"5 < 5;", 5, "<", 5},
+        {"5 == 5;", 5, "==", 5},
+        {"5 != 5;", 5, "!=", 5},
+        {"foobar + barfoo;", "foobar", "+", "barfoo"},
+        {"true == true", true, "==", true},
+        {"true != false", true, "!=", false},
+        {"false == false", false, "==", false},
     };
 
     for (const auto &[input, leftValue, op, rightValue] : infixTests) {
@@ -307,6 +369,10 @@ TEST(ParserTest, OperatorPrecedenceParsing) {
         {"3 + 4; -5 * 5", "(3 + 4)((-5) * 5)"},
         {"5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"},
         {"5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"},
+        {"true", "true"},
+        {"false", "false"},
+        {"3 > 5 == false", "((3 > 5) == false)"},
+        {"3 < 5 == true", "((3 < 5) == true)"},
     };
 
     for (const auto &[input, expected] : tests) {

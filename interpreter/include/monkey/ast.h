@@ -61,8 +61,13 @@ struct IntegerLiteral {
     int64_t value;
 };
 
-using Expression =
-    std::variant<Identifier, IntegerLiteral, Box<PrefixExpression>, Box<InfixExpression>>;
+struct BooleanLiteral {
+    Token token;
+    bool value = false;
+};
+
+using Expression = std::variant<Identifier, IntegerLiteral, BooleanLiteral,
+                                Box<PrefixExpression>, Box<InfixExpression>>;
 
 // Recursive expression types definitions
 struct PrefixExpression {
