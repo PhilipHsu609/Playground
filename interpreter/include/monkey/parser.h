@@ -50,6 +50,7 @@ class Parser {
     std::optional<Expression> parseIdentifier();
     std::optional<Expression> parseBoolean();
     std::optional<Expression> parseIntegerLiteral();
+    std::optional<Expression> parseFunctionLiteral();
     std::optional<Expression> parsePrefixExpression();
     std::optional<Expression> parseInfixExpression(Expression left);
     std::optional<Expression> parseGroupedExpression();

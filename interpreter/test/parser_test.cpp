@@ -380,6 +380,7 @@ TEST(ParserTest, OperatorPrecedenceParsing) {
         {"!(true == true)", "(!(true == true))"},
         {"if (3 > 5) { 10 } else { 20 }", "if (3 > 5) { 10 } else { 20 }"},
         {"if (3 > 5) { 10 }", "if (3 > 5) { 10 }"},
+        {"fn(x, y) { x + y }", "fn(x, y) { (x + y) }"},
     };
 
     for (const auto &[input, expected] : tests) {
@@ -509,4 +510,96 @@ TEST(ParserTest, IfElseExpression) {
     }
 
     testIdentifier(alternativeExprStmt->expression, "y");
+}
+
+TEST(ParserTest, FunctionLiteralParsing) {
+    std::string input = "fn(x, y) { x + y; }";
+
+    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto program = parser.parseProgram();
+
+    checkParserErrors(parser);
+
+    if (program == nullptr) {
+        FAIL() << "parseProgram() returned nullptr";
+    }
+
+    if (program->statements.size() != 1) {
+        FAIL() << "program.statements does not contain 1 statement. got="
+               << program->statements.size();
+    }
+
+    const auto &stmt = program->statements[0];
+    const auto *exprStmt = std::get_if<ExpressionStatement>(&stmt);
+
+    if (exprStmt == nullptr) {
+        FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
+    }
+
+    const auto *boxFuncLit = std::get_if<Box<FunctionLiteral>>(&exprStmt->expression);
+    if (boxFuncLit == nullptr) {
+        FAIL() << "expression not FunctionLiteral. got="
+               << typeid(exprStmt->expression).name();
+    }
+
+    const auto &funcLit = *boxFuncLit;
+
+    EXPECT_EQ(funcLit->parameters.size(), 2);
+    testIdentifier(funcLit->parameters[0], "x");
+    testIdentifier(funcLit->parameters[1], "y");
+
+    EXPECT_EQ(funcLit->body.statements.size(), 1);
+
+    const auto &bodyStmt = funcLit->body.statements[0];
+    const auto *bodyExprStmt = std::get_if<ExpressionStatement>(&bodyStmt);
+
+    if (bodyExprStmt == nullptr) {
+        FAIL() << "body stmt not ExpressionStatement. got=" << typeid(bodyStmt).name();
+    }
+
+    testInfixExpression(bodyExprStmt->expression, "x", "+", "y");
+}
+
+TEST(ParserTest, FunctionLiteralParameterParsing) {
+    std::vector<std::tuple<std::string, std::vector<std::string>>> tests = {
+        {"fn() {};", {}},
+        {"fn(x) {};", {"x"}},
+        {"fn(x, y, z) {};", {"x", "y", "z"}},
+    };
+
+    for (const auto &[input, expectedParams] : tests) {
+        auto parser = Parser(std::make_unique<Lexer>(input));
+        auto program = parser.parseProgram();
+
+        checkParserErrors(parser);
+
+        if (program == nullptr) {
+            FAIL() << "parseProgram() returned nullptr";
+        }
+
+        if (program->statements.size() != 1) {
+            FAIL() << "program.statements does not contain 1 statement. got="
+                   << program->statements.size();
+        }
+
+        const auto &stmt = program->statements[0];
+        const auto *exprStmt = std::get_if<ExpressionStatement>(&stmt);
+
+        if (exprStmt == nullptr) {
+            FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
+        }
+
+        const auto *boxFuncLit = std::get_if<Box<FunctionLiteral>>(&exprStmt->expression);
+        if (boxFuncLit == nullptr) {
+            FAIL() << "expression not FunctionLiteral. got="
+                   << typeid(exprStmt->expression).name();
+        }
+
+        const auto &funcLit = *boxFuncLit;
+        EXPECT_EQ(funcLit->parameters.size(), expectedParams.size());
+
+        for (size_t i = 0; i < expectedParams.size(); ++i) {
+            testIdentifier(funcLit->parameters[i], expectedParams[i]);
+        }
+    }
 }

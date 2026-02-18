@@ -1,6 +1,11 @@
 #include "monkey/ast.h"
 
+#include <fmt/format.h>
+#include <fmt/ranges.h>
+
+#include <ranges>
 #include <string>
+#include <variant>
 
 namespace monkey {
 
@@ -34,12 +39,21 @@ std::string toString(const Expression &expr) {
                                    toString(s->right));
             },
             [](const Box<IfExpression> &s) {
-                std::string result = fmt::format("if {} {{ {} }}", toString(s->condition),
+                std::string result = fmt::format("if {} {}", toString(s->condition),
                                                  toString(s->consequence));
                 if (s->alternative) {
-                    result += fmt::format(" else {{ {} }}", toString(*s->alternative));
+                    result += fmt::format(" else {}", toString(*s->alternative));
                 }
                 return result;
+            },
+            [](const Box<FunctionLiteral> &s) {
+                return fmt::format(
+                    "fn({}) {}",
+                    fmt::join(std::views::transform(
+                                  s->parameters,
+                                  [](const Identifier &p) { return toString(p); }),
+                              ", "),
+                    toString(s->body));
             },
         },
         expr);
@@ -57,10 +71,11 @@ std::string toString(const Statement &stmt) {
             },
             [](const ExpressionStatement &s) { return toString(s.expression); },
             [](const BlockStatement &s) {
-                std::string result;
+                std::string result = "{ ";
                 for (const auto &stmt : s.statements) {
                     result += toString(stmt);
                 }
+                result += " }";
                 return result;
             },
         },

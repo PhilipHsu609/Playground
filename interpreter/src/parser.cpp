@@ -34,6 +34,8 @@ Parser::Parser(std::unique_ptr<Lexer> lexer) : lexer_(std::move(lexer)) {
     registerPrefix(TokenType::LPAREN,
                    [this]() { return this->parseGroupedExpression(); });
     registerPrefix(TokenType::IF, [this]() { return this->parseIfExpression(); });
+    registerPrefix(TokenType::FUNCTION,
+                   [this]() { return this->parseFunctionLiteral(); });
 
     // Register infix parse functions
     auto infixParseFn = [this](Expression left) {
@@ -241,6 +243,43 @@ std::optional<Expression> Parser::parseIntegerLiteral() {
         errors_.push_back(error);
     }
     return std::nullopt;
+}
+
+std::optional<Expression> Parser::parseFunctionLiteral() {
+    auto func = FunctionLiteral{.token = currentToken_, .parameters = {}, .body = {}};
+
+    if (!expectPeek(TokenType::LPAREN)) {
+        return std::nullopt;
+    }
+
+    if (peekToken_.type != TokenType::RPAREN) {
+        // Parse the first parameter.
+        nextToken();
+        func.parameters.emplace_back(Identifier{.token = currentToken_});
+
+        // Parse additional parameters, if any.
+        while (peekToken_.type == TokenType::COMMA) {
+            nextToken();
+            nextToken();
+            func.parameters.emplace_back(Identifier{.token = currentToken_});
+        }
+    }
+
+    if (!expectPeek(TokenType::RPAREN)) {
+        return std::nullopt;
+    }
+
+    if (!expectPeek(TokenType::LBRACE)) {
+        return std::nullopt;
+    }
+
+    auto body = parseBlockStatement();
+    if (!body) {
+        return std::nullopt;
+    }
+    func.body = std::move(*body);
+
+    return func;
 }
 
 std::optional<Expression> Parser::parseBoolean() {

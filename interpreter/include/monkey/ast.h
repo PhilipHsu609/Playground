@@ -52,6 +52,7 @@ struct PrefixExpression;
 struct InfixExpression;
 struct IfExpression;
 struct BlockStatement;
+struct FunctionLiteral;
 
 // Leaf expression types definitions
 struct Identifier {
@@ -70,7 +71,7 @@ struct BooleanLiteral {
 
 using Expression =
     std::variant<Identifier, IntegerLiteral, BooleanLiteral, Box<PrefixExpression>,
-                 Box<InfixExpression>, Box<IfExpression>>;
+                 Box<InfixExpression>, Box<IfExpression>, Box<FunctionLiteral>>;
 
 // Recursive expression types definitions
 struct PrefixExpression {
@@ -118,6 +119,12 @@ struct IfExpression {
     Expression condition;
     BlockStatement consequence;
     std::optional<BlockStatement> alternative;
+};
+
+struct FunctionLiteral {
+    Token token; // The 'fn' token
+    std::vector<Identifier> parameters;
+    BlockStatement body;
 };
 
 // Program is the root node of the AST
