@@ -1,5 +1,6 @@
 #include "monkey/parser.h"
 #include "monkey/ast.h"
+#include "monkey/token.h"
 
 #include <fmt/format.h>
 #include <magic_enum/magic_enum_format.hpp>
@@ -17,6 +18,7 @@ const static std::unordered_map<TokenType, Precedence> PRECEDENCES = {
     {TokenType::LT, Precedence::LESSGREATER}, {TokenType::GT, Precedence::LESSGREATER},
     {TokenType::PLUS, Precedence::SUM},       {TokenType::MINUS, Precedence::SUM},
     {TokenType::SLASH, Precedence::PRODUCT},  {TokenType::ASTERISK, Precedence::PRODUCT},
+    {TokenType::LPAREN, Precedence::CALL},
 };
 
 Parser::Parser(std::unique_ptr<Lexer> lexer) : lexer_(std::move(lexer)) {
@@ -49,6 +51,9 @@ Parser::Parser(std::unique_ptr<Lexer> lexer) : lexer_(std::move(lexer)) {
     registerInfix(TokenType::NOT_EQ, infixParseFn);
     registerInfix(TokenType::LT, infixParseFn);
     registerInfix(TokenType::GT, infixParseFn);
+    registerInfix(TokenType::LPAREN, [this](Expression left) {
+        return this->parseCallExpression(std::move(left));
+    });
 }
 
 std::unique_ptr<Program> Parser::parseProgram() {
@@ -369,6 +374,41 @@ std::optional<Expression> Parser::parseIfExpression() {
             return std::nullopt;
         }
         expr.alternative = std::move(*alternative);
+    }
+
+    return expr;
+}
+
+std::optional<Expression> Parser::parseCallExpression(Expression function) {
+    auto expr = CallExpression{
+        .token = currentToken_, .function = std::move(function), .arguments = {}};
+
+    if (peekToken_.type == TokenType::RPAREN) {
+        nextToken();
+        return expr;
+    }
+
+    // Parse the first argument.
+    nextToken();
+    auto arg = parseExpression(Precedence::LOWEST);
+    if (!arg) {
+        return std::nullopt;
+    }
+    expr.arguments.emplace_back(std::move(*arg));
+
+    // Parse additional arguments, if any.
+    while (peekToken_.type == TokenType::COMMA) {
+        nextToken();
+        nextToken();
+        arg = parseExpression(Precedence::LOWEST);
+        if (!arg) {
+            return std::nullopt;
+        }
+        expr.arguments.emplace_back(std::move(*arg));
+    }
+
+    if (!expectPeek(TokenType::RPAREN)) {
+        return std::nullopt;
     }
 
     return expr;

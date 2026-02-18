@@ -381,6 +381,10 @@ TEST(ParserTest, OperatorPrecedenceParsing) {
         {"if (3 > 5) { 10 } else { 20 }", "if (3 > 5) { 10 } else { 20 }"},
         {"if (3 > 5) { 10 }", "if (3 > 5) { 10 }"},
         {"fn(x, y) { x + y }", "fn(x, y) { (x + y) }"},
+        {"a + add(b * c) + d", "((a + add((b * c))) + d)"},
+        {"add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+         "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))"},
+        {"add(a + b + c * d / f + g)", "add((((a + b) + ((c * d) / f)) + g))"},
     };
 
     for (const auto &[input, expected] : tests) {
@@ -602,4 +606,42 @@ TEST(ParserTest, FunctionLiteralParameterParsing) {
             testIdentifier(funcLit->parameters[i], expectedParams[i]);
         }
     }
+}
+
+TEST(ParserTest, CallExpressionParsing) {
+    std::string input = "add(1, 2 * 3, 4 + 5);";
+
+    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto program = parser.parseProgram();
+
+    checkParserErrors(parser);
+
+    if (program == nullptr) {
+        FAIL() << "parseProgram() returned nullptr";
+    }
+
+    if (program->statements.size() != 1) {
+        FAIL() << "program.statements does not contain 1 statement. got="
+               << program->statements.size();
+    }
+
+    const auto &stmt = program->statements[0];
+    const auto *exprStmt = std::get_if<ExpressionStatement>(&stmt);
+
+    if (exprStmt == nullptr) {
+        FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
+    }
+
+    const auto *callExpr = std::get_if<Box<CallExpression>>(&exprStmt->expression);
+    if (callExpr == nullptr) {
+        FAIL() << "expression not CallExpression. got="
+               << typeid(exprStmt->expression).name();
+    }
+
+    const auto &call = *callExpr;
+    testIdentifier(call->function, "add");
+    EXPECT_EQ(call->arguments.size(), 3);
+    testLiteralExpression(call->arguments[0], 1);
+    testInfixExpression(call->arguments[1], 2, "*", 3);
+    testInfixExpression(call->arguments[2], 4, "+", 5);
 }

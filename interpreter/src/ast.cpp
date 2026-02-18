@@ -55,6 +55,14 @@ std::string toString(const Expression &expr) {
                               ", "),
                     toString(s->body));
             },
+            [](const Box<CallExpression> &s) {
+                return fmt::format(
+                    "{}({})", toString(s->function),
+                    fmt::join(std::views::transform(
+                                  s->arguments,
+                                  [](const Expression &a) { return toString(a); }),
+                              ", "));
+            },
         },
         expr);
 }
