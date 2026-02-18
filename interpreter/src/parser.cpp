@@ -190,7 +190,8 @@ std::optional<Expression> Parser::parseExpression(Precedence precedence) {
         if (infixParseFnIt == infixParseFns_.end()) {
             return leftExpr;
         }
-        // 4. We consume the '+' token (make it current) and parse the right side of the expression.
+        // 4. We consume the '+' token (make it current) and parse the right side of the
+        // expression.
         nextToken();
         auto newLeftExpr = infixParseFnIt->second(std::move(*leftExpr));
         if (!newLeftExpr) {

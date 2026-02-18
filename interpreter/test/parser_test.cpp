@@ -9,9 +9,14 @@
 #include <ranges>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <vector>
 
-using namespace monkey; // NOLINT(google-build-using-namespace) - for cleaner test code
+using namespace monkey;
+
+template <typename... T>
+// NOLINTNEXTLINE(readability-identifier-naming) - type_trait naming convention
+constexpr bool always_false = false;
 
 void checkParserErrors(const Parser &parser) {
     const auto &errors = parser.errors();
@@ -20,6 +25,60 @@ void checkParserErrors(const Parser &parser) {
     }
     FAIL() << "parser has " << errors.size() << " errors:\n"
            << fmt::format("{}", fmt::join(errors, "\n"));
+}
+
+void testIntegerLiteral(const Expression &expr, int64_t value) {
+    const auto *intLiteral = std::get_if<IntegerLiteral>(&expr);
+
+    if (intLiteral == nullptr) {
+        FAIL() << "expression not IntegerLiteral. got=" << typeid(expr).name();
+    }
+
+    EXPECT_EQ(tokenLiteral(*intLiteral), std::to_string(value))
+        << "intLiteral.tokenLiteral() not '" << value
+        << "'. got=" << tokenLiteral(*intLiteral);
+    EXPECT_EQ(intLiteral->value, value)
+        << "intLiteral.value not " << value << ". got=" << intLiteral->value;
+}
+
+void testIdentifier(const Expression &expr, const std::string &value) {
+    const auto *ident = std::get_if<Identifier>(&expr);
+
+    if (ident == nullptr) {
+        FAIL() << "expression not Identifier. got=" << typeid(expr).name();
+    }
+
+    EXPECT_EQ(tokenLiteral(*ident), value)
+        << "ident.tokenLiteral() not '" << value << "'. got=" << tokenLiteral(*ident);
+}
+
+void testLiteralExpression(const Expression &expr, auto &&expected) {
+    using T = std::decay_t<decltype(expected)>;
+    if constexpr (std::is_same_v<T, int64_t>) {
+        testIntegerLiteral(expr, expected);
+    } else if constexpr (std::is_integral_v<T>) {
+        testIntegerLiteral(expr, static_cast<int64_t>(expected));
+    } else if constexpr (std::is_convertible_v<T, std::string>) {
+        testIdentifier(expr, expected);
+    } else {
+        static_assert(always_false<T>, "unsupported literal type");
+    }
+}
+
+void testInfixExpression(const Expression &expr, const auto &leftValue,
+                         const std::string &op, const auto &rightValue) {
+    const auto *infixExpr = std::get_if<Box<InfixExpression>>(&expr);
+
+    if (infixExpr == nullptr) {
+        FAIL() << "expression not InfixExpression. got=" << typeid(expr).name();
+    }
+
+    testLiteralExpression((*infixExpr)->left, leftValue);
+
+    EXPECT_EQ((*infixExpr)->op, op)
+        << "operator is not '" << op << "'. got=" << (*infixExpr)->op;
+
+    testLiteralExpression((*infixExpr)->right, rightValue);
 }
 
 TEST(ParserTest, LetStatements) {
@@ -56,9 +115,9 @@ let foobar = 838383;
 
         EXPECT_EQ(tokenLiteral(*letStmt), "let")
             << "let_stmt.tokenLiteral() not 'let'. got=" << tokenLiteral(*letStmt);
-        EXPECT_EQ(tokenLiteral(letStmt->name), expectedIdentifiers[idx])
-            << "let_stmt.name.tokenLiteral() not '" << expectedIdentifiers[idx]
-            << "'. got=" << tokenLiteral(letStmt->name);
+
+        testIdentifier(letStmt->name, expectedIdentifiers[idx]);
+
         // EXPECT_EQ(tokenLiteral(let_stmt->value), expected_values[idx])
         //     << "let_stmt.value not '" << expected_values[idx]
         //     << "'. got=" << tokenLiteral(let_stmt->value);
@@ -129,15 +188,7 @@ TEST(ParserTest, IdentifierExpression) {
         FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
     }
 
-    const auto *ident = std::get_if<Identifier>(&exprStmt->expression);
-
-    if (ident == nullptr) {
-        FAIL() << "expression not Identifier. got="
-               << typeid(exprStmt->expression).name();
-    }
-
-    EXPECT_EQ(tokenLiteral(*ident), "foobar")
-        << "ident.tokenLiteral() not 'foobar'. got=" << tokenLiteral(*ident);
+    testIdentifier(exprStmt->expression, "foobar");
 }
 
 TEST(ParserTest, IntegerLiteralExpression) {
@@ -164,17 +215,7 @@ TEST(ParserTest, IntegerLiteralExpression) {
         FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
     }
 
-    const auto *intLiteral = std::get_if<IntegerLiteral>(&exprStmt->expression);
-
-    if (intLiteral == nullptr) {
-        FAIL() << "expression not IntegerLiteral. got="
-               << typeid(exprStmt->expression).name();
-    }
-
-    EXPECT_EQ(tokenLiteral(*intLiteral), "5")
-        << "intLiteral.tokenLiteral() not '5'. got=" << tokenLiteral(*intLiteral);
-    EXPECT_EQ(intLiteral->value, 5)
-        << "intLiteral.value not 5. got=" << intLiteral->value;
+    testIntegerLiteral(exprStmt->expression, 5);
 }
 
 TEST(ParserTest, PrefixExpressions) {
@@ -216,18 +257,7 @@ TEST(ParserTest, PrefixExpressions) {
         EXPECT_EQ((*prefixExpr)->op, op)
             << "operator is not '" << op << "'. got=" << (*prefixExpr)->op;
 
-        const auto *intLiteral = std::get_if<IntegerLiteral>(&(*prefixExpr)->right);
-
-        if (intLiteral == nullptr) {
-            FAIL() << "right expression not IntegerLiteral. got="
-                   << typeid((*prefixExpr)->right).name();
-        }
-
-        EXPECT_EQ(tokenLiteral(*intLiteral), std::to_string(value))
-            << "intLiteral.tokenLiteral() not '" << value
-            << "'. got=" << tokenLiteral(*intLiteral);
-        EXPECT_EQ(intLiteral->value, value)
-            << "intLiteral.value not " << value << ". got=" << intLiteral->value;
+        testIntegerLiteral((*prefixExpr)->right, value);
     }
 }
 
@@ -260,43 +290,7 @@ TEST(ParserTest, InfixExpressions) {
             FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
         }
 
-        const auto *infixExpr = std::get_if<Box<InfixExpression>>(&exprStmt->expression);
-
-        if (infixExpr == nullptr) {
-            FAIL() << "expression not InfixExpression. got="
-                   << typeid(exprStmt->expression).name();
-        }
-
-        const auto *leftIntLiteral = std::get_if<IntegerLiteral>(&(*infixExpr)->left);
-
-        if (leftIntLiteral == nullptr) {
-            FAIL() << "left expression not IntegerLiteral. got="
-                   << typeid((*infixExpr)->left).name();
-        }
-
-        EXPECT_EQ(tokenLiteral(*leftIntLiteral), std::to_string(leftValue))
-            << "leftIntLiteral.tokenLiteral() not '" << leftValue
-            << "'. got=" << tokenLiteral(*leftIntLiteral);
-        EXPECT_EQ(leftIntLiteral->value, leftValue)
-            << "leftIntLiteral.value not " << leftValue
-            << ". got=" << leftIntLiteral->value;
-
-        EXPECT_EQ((*infixExpr)->op, op)
-            << "operator is not '" << op << "'. got=" << (*infixExpr)->op;
-
-        const auto *rightIntLiteral = std::get_if<IntegerLiteral>(&(*infixExpr)->right);
-
-        if (rightIntLiteral == nullptr) {
-            FAIL() << "right expression not IntegerLiteral. got="
-                   << typeid((*infixExpr)->right).name();
-        }
-
-        EXPECT_EQ(tokenLiteral(*rightIntLiteral), std::to_string(rightValue))
-            << "rightIntLiteral.tokenLiteral() not '" << rightValue
-            << "'. got=" << tokenLiteral(*rightIntLiteral);
-        EXPECT_EQ(rightIntLiteral->value, rightValue)
-            << "rightIntLiteral.value not " << rightValue
-            << ". got=" << rightIntLiteral->value;
+        testInfixExpression(exprStmt->expression, leftValue, op, rightValue);
     }
 }
 
