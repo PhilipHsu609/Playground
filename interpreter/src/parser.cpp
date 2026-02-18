@@ -5,21 +5,46 @@
 #include <fmt/format.h>
 #include <magic_enum/magic_enum_format.hpp>
 
+#include <array>
+#include <charconv>
 #include <memory>
 #include <optional>
-#include <stdexcept>
+#include <system_error>
 #include <unordered_map>
 #include <utility>
 
-namespace monkey {
+namespace {
 
-const static std::unordered_map<TokenType, Precedence> PRECEDENCES = {
-    {TokenType::EQ, Precedence::EQUALS},      {TokenType::NOT_EQ, Precedence::EQUALS},
-    {TokenType::LT, Precedence::LESSGREATER}, {TokenType::GT, Precedence::LESSGREATER},
-    {TokenType::PLUS, Precedence::SUM},       {TokenType::MINUS, Precedence::SUM},
-    {TokenType::SLASH, Precedence::PRODUCT},  {TokenType::ASTERISK, Precedence::PRODUCT},
-    {TokenType::LPAREN, Precedence::CALL},
-};
+using namespace monkey;
+
+constexpr auto PRECEDENCES = []() {
+    auto arr = std::to_array<std::pair<TokenType, Precedence>>(
+        {{TokenType::EQ, Precedence::EQUALS},
+         {TokenType::NOT_EQ, Precedence::EQUALS},
+         {TokenType::LT, Precedence::LESSGREATER},
+         {TokenType::GT, Precedence::LESSGREATER},
+         {TokenType::PLUS, Precedence::SUM},
+         {TokenType::MINUS, Precedence::SUM},
+         {TokenType::SLASH, Precedence::PRODUCT},
+         {TokenType::ASTERISK, Precedence::PRODUCT},
+         {TokenType::LPAREN, Precedence::CALL}});
+    std::ranges::sort(arr, std::ranges::less{}, &std::pair<TokenType, Precedence>::first);
+    return arr;
+}();
+
+Precedence lookupPrecedence(TokenType tokenType) {
+    if (const auto *it =
+            std::ranges::lower_bound(PRECEDENCES, tokenType, std::ranges::less{},
+                                     &std::pair<TokenType, Precedence>::first);
+        it != PRECEDENCES.end() && it->first == tokenType) {
+        return it->second;
+    }
+    return Precedence::LOWEST;
+}
+
+} // namespace
+
+namespace monkey {
 
 Parser::Parser(std::unique_ptr<Lexer> lexer) : lexer_(std::move(lexer)) {
     // Initialize currentToken and peekToken
@@ -97,18 +122,10 @@ void Parser::peekError(TokenType type) {
     errors_.push_back(error);
 }
 
-Precedence Parser::peekPrecedence() const {
-    if (auto it = PRECEDENCES.find(peekToken_.type); it != PRECEDENCES.end()) {
-        return it->second;
-    }
-    return Precedence::LOWEST;
-}
+Precedence Parser::peekPrecedence() const { return lookupPrecedence(peekToken_.type); }
 
 Precedence Parser::currentPrecedence() const {
-    if (auto it = PRECEDENCES.find(currentToken_.type); it != PRECEDENCES.end()) {
-        return it->second;
-    }
-    return Precedence::LOWEST;
+    return lookupPrecedence(currentToken_.type);
 }
 
 std::optional<Statement> Parser::parseStatement() {
@@ -248,17 +265,25 @@ std::optional<Expression> Parser::parseIdentifier() {
 }
 
 std::optional<Expression> Parser::parseIntegerLiteral() {
-    try {
-        auto value = std::stoll(currentToken_.literal);
-        return IntegerLiteral{.token = currentToken_, .value = value};
-    } catch (const std::invalid_argument &e) {
-        auto error = fmt::format("could not parse {} as integer", currentToken_.literal);
+    int64_t value{};
+    const auto &literal = currentToken_.literal;
+
+    auto [ptr, ec] =
+        std::from_chars(literal.data(), literal.data() + literal.size(), value);
+
+    if (ec != std::errc()) {
+        std::string error;
+        if (ec == std::errc::result_out_of_range) {
+            error =
+                fmt::format("integer literal {} is out of range", currentToken_.literal);
+        } else {
+            error = fmt::format("could not parse {} as integer", currentToken_.literal);
+        }
         errors_.push_back(error);
-    } catch (const std::out_of_range &e) {
-        auto error = fmt::format("{} is out of range for int64_t", currentToken_.literal);
-        errors_.push_back(error);
+        return std::nullopt;
     }
-    return std::nullopt;
+
+    return IntegerLiteral{.token = currentToken_, .value = value};
 }
 
 std::optional<Expression> Parser::parseFunctionLiteral() {
