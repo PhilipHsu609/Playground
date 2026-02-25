@@ -46,7 +46,7 @@ Precedence lookupPrecedence(TokenType tokenType) {
 
 namespace monkey {
 
-Parser::Parser(std::unique_ptr<Lexer> lexer) : lexer_(std::move(lexer)) {
+Parser::Parser(Lexer lexer) : lexer_(std::move(lexer)) {
     // Initialize currentToken and peekToken
     nextToken();
     nextToken();
@@ -104,7 +104,7 @@ void Parser::registerInfix(TokenType tokenType, InfixParseFn fn) {
 
 void Parser::nextToken() {
     currentToken_ = peekToken_;
-    peekToken_ = lexer_->nextToken();
+    peekToken_ = lexer_.nextToken();
 }
 
 bool Parser::expectPeek(TokenType type) {

@@ -25,7 +25,7 @@ enum class Precedence {
 
 class Parser {
   public:
-    explicit Parser(std::unique_ptr<Lexer> lexer);
+    explicit Parser(Lexer lexer);
     std::unique_ptr<Program> parseProgram();
     const std::vector<std::string> &errors() const { return errors_; }
 
@@ -60,7 +60,7 @@ class Parser {
     void registerPrefix(TokenType tokenType, PrefixParseFn fn);
     void registerInfix(TokenType tokenType, InfixParseFn fn);
 
-    std::unique_ptr<Lexer> lexer_;
+    Lexer lexer_;
     Token currentToken_;
     Token peekToken_;
 

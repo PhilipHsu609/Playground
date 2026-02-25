@@ -112,7 +112,7 @@ let y = true;
 let foobar = y;
 )";
 
-    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto parser = Parser(Lexer(input));
     auto program = parser.parseProgram();
 
     checkParserErrors(parser);
@@ -152,7 +152,7 @@ return 10;
 return 993322;
 )";
 
-    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto parser = Parser(Lexer(input));
     auto program = parser.parseProgram();
 
     checkParserErrors(parser);
@@ -186,7 +186,7 @@ return 993322;
 TEST(ParserTest, IdentifierExpression) {
     std::string input = "foobar;";
 
-    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto parser = Parser(Lexer(input));
     auto program = parser.parseProgram();
 
     checkParserErrors(parser);
@@ -213,7 +213,7 @@ TEST(ParserTest, IdentifierExpression) {
 TEST(ParserTest, IntegerLiteralExpression) {
     std::string input = "5;";
 
-    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto parser = Parser(Lexer(input));
     auto program = parser.parseProgram();
 
     checkParserErrors(parser);
@@ -240,7 +240,7 @@ TEST(ParserTest, IntegerLiteralExpression) {
 TEST(ParserTest, BooleanLiteralExpression) {
     std::string input = "true;";
 
-    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto parser = Parser(Lexer(input));
     auto program = parser.parseProgram();
 
     checkParserErrors(parser);
@@ -273,7 +273,7 @@ TEST(ParserTest, PrefixExpressions) {
     };
 
     for (const auto &[input, op, value] : prefixTests) {
-        auto parser = Parser(std::make_unique<Lexer>(input));
+        auto parser = Parser(Lexer(input));
         auto program = parser.parseProgram();
 
         checkParserErrors(parser);
@@ -326,7 +326,7 @@ TEST(ParserTest, InfixExpressions) {
     };
 
     for (const auto &[input, leftValue, op, rightValue] : infixTests) {
-        auto parser = Parser(std::make_unique<Lexer>(input));
+        auto parser = Parser(Lexer(input));
         auto program = parser.parseProgram();
 
         checkParserErrors(parser);
@@ -383,7 +383,7 @@ TEST(ParserTest, OperatorPrecedenceParsing) {
     };
 
     for (const auto &[input, expected] : tests) {
-        auto parser = Parser(std::make_unique<Lexer>(input));
+        auto parser = Parser(Lexer(input));
         auto program = parser.parseProgram();
 
         checkParserErrors(parser);
@@ -400,7 +400,7 @@ TEST(ParserTest, OperatorPrecedenceParsing) {
 TEST(ParserTest, IfExpression) {
     std::string input = "if (x < y) { x }";
 
-    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto parser = Parser(Lexer(input));
     auto program = parser.parseProgram();
 
     checkParserErrors(parser);
@@ -451,7 +451,7 @@ TEST(ParserTest, IfExpression) {
 TEST(ParserTest, IfElseExpression) {
     std::string input = "if (x < y) { x } else { y }";
 
-    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto parser = Parser(Lexer(input));
     auto program = parser.parseProgram();
 
     checkParserErrors(parser);
@@ -514,7 +514,7 @@ TEST(ParserTest, IfElseExpression) {
 TEST(ParserTest, FunctionLiteralParsing) {
     std::string input = "fn(x, y) { x + y; }";
 
-    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto parser = Parser(Lexer(input));
     auto program = parser.parseProgram();
 
     checkParserErrors(parser);
@@ -567,7 +567,7 @@ TEST(ParserTest, FunctionLiteralParameterParsing) {
     };
 
     for (const auto &[input, expectedParams] : tests) {
-        auto parser = Parser(std::make_unique<Lexer>(input));
+        auto parser = Parser(Lexer(input));
         auto program = parser.parseProgram();
 
         checkParserErrors(parser);
@@ -606,7 +606,7 @@ TEST(ParserTest, FunctionLiteralParameterParsing) {
 TEST(ParserTest, CallExpressionParsing) {
     std::string input = "add(1, 2 * 3, 4 + 5);";
 
-    auto parser = Parser(std::make_unique<Lexer>(input));
+    auto parser = Parser(Lexer(input));
     auto program = parser.parseProgram();
 
     checkParserErrors(parser);
