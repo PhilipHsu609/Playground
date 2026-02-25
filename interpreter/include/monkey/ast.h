@@ -38,10 +38,8 @@ class Box {
 
     ~Box() = default;
 
-    T &operator*() { return *ptr_; }
-    const T &operator*() const { return *ptr_; }
-    T *operator->() { return ptr_.get(); }
-    const T *operator->() const { return ptr_.get(); }
+    auto &&operator*(this auto &&self) { return *self.ptr_; }
+    auto operator->(this auto &&self) { return self.ptr_.get(); }
 
   private:
     std::unique_ptr<T> ptr_;
