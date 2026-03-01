@@ -6,6 +6,7 @@ target_sources(
     PRIVATE
     ast.cpp
     lexer.cpp
+    object.cpp
     parser.cpp
     repl.cpp
 )

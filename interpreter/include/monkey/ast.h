@@ -169,11 +169,6 @@ std::string tokenLiteral(const Variant auto &var) {
     return std::visit([](const auto &s) { return tokenLiteral(s); }, var);
 }
 
-template <typename... Ts>
-struct overloaded : Ts... {
-    using Ts::operator()...;
-};
-
 std::string toString(const Program &program);
 std::string toString(const Expression &expr);
 std::string toString(const Statement &stmt);
