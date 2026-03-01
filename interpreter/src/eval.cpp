@@ -4,6 +4,8 @@
 #include "monkey/object.h"
 #include "monkey/overload.h"
 
+#include <fmt/format.h>
+
 #include <cstdint>
 #include <string>
 #include <variant>
@@ -30,6 +32,9 @@ Object evalProgram(const std::vector<Statement> &statements) {
         if (std::holds_alternative<Box<ReturnValue>>(result)) {
             return std::get<Box<ReturnValue>>(result)->value;
         }
+        if (std::holds_alternative<Error>(result)) {
+            return std::get<Error>(result);
+        }
     }
     return result;
 }
@@ -39,6 +44,9 @@ Object evalBlockStatements(const std::vector<Statement> &statements) {
     for (const auto &statement : statements) {
         result = eval(statement);
         if (std::holds_alternative<Box<ReturnValue>>(result)) {
+            return result;
+        }
+        if (std::holds_alternative<Error>(result)) {
             return result;
         }
     }
@@ -64,7 +72,8 @@ Object evalPrefixExpression(const PrefixExpression &expr) {
             return -std::get<int64_t>(right);
         }
     }
-    return nullptr;
+    return Error{
+        fmt::format("unknown operator: {}{}", expr.op, tokenLiteral(expr.right))};
 }
 
 Object evalIntegerInfixExpression(const std::string &op, int64_t left, int64_t right) {
@@ -92,7 +101,17 @@ Object evalIntegerInfixExpression(const std::string &op, int64_t left, int64_t r
     if (op == "!=") {
         return left != right;
     }
-    throw std::runtime_error("unknown operator: " + op);
+    return Error{fmt::format("unknown operator: {} {} {}", left, op, right)};
+}
+
+Object evalBooleanInfixExpression(const std::string &op, bool left, bool right) {
+    if (op == "==") {
+        return left == right;
+    }
+    if (op == "!=") {
+        return left != right;
+    }
+    return Error{fmt::format("unknown operator: {} {} {}", left, op, right)};
 }
 
 Object evalInfixExpression(const InfixExpression &expr) {
@@ -105,11 +124,12 @@ Object evalInfixExpression(const InfixExpression &expr) {
         return evalIntegerInfixExpression(expr.op, leftVal, rightVal);
     }
     if (std::holds_alternative<bool>(left) && std::holds_alternative<bool>(right)) {
-        auto leftVal = static_cast<int64_t>(std::get<bool>(left));
-        auto rightVal = static_cast<int64_t>(std::get<bool>(right));
-        return evalIntegerInfixExpression(expr.op, leftVal, rightVal);
+        bool leftVal = std::get<bool>(left);
+        bool rightVal = std::get<bool>(right);
+        return evalBooleanInfixExpression(expr.op, leftVal, rightVal);
     }
-    return nullptr;
+    return Error{fmt::format("type mismatch: {} {} {}", tokenLiteral(expr.left), expr.op,
+                             tokenLiteral(expr.right))};
 }
 
 Object evalIfExpression(const IfExpression &expr) {
@@ -148,18 +168,19 @@ Object eval(const Statement &statement) {
 
 Object eval(const Expression &expression) {
     return std::visit(
-        overloaded{[](const IntegerLiteral &expr) -> Object { return expr.value; },
-                   [](const BooleanLiteral &expr) -> Object { return expr.value; },
-                   [](const Box<PrefixExpression> &expr) -> Object {
-                       return evalPrefixExpression(*expr);
-                   },
-                   [](const Box<InfixExpression> &expr) -> Object {
-                       return evalInfixExpression(*expr);
-                   },
-                   [](const Box<IfExpression> &expr) -> Object {
-                       return evalIfExpression(*expr);
-                   },
-                   [](const auto &) -> Object { return Object{}; }},
+        overloaded{
+            [](const IntegerLiteral &expr) -> Object { return expr.value; },
+            [](const BooleanLiteral &expr) -> Object { return expr.value; },
+            [](const Box<PrefixExpression> &expr) -> Object {
+                return evalPrefixExpression(*expr);
+            },
+            [](const Box<InfixExpression> &expr) -> Object {
+                return evalInfixExpression(*expr);
+            },
+            [](const Box<IfExpression> &expr) -> Object {
+                return evalIfExpression(*expr);
+            },
+            [](const auto &) -> Object { return Error{"unknown expression type"}; }},
         expression);
 }
 

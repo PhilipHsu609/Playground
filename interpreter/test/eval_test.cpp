@@ -113,3 +113,17 @@ TEST(EvalTest, ReturnStatements) {
         testIntegerObject(evaluated, expected);
     }
 }
+
+TEST(EvalTest, ErrorHandling) {
+    std::vector<std::pair<std::string, std::string>> tests = {
+        {"5 + true;", "type mismatch: 5 + true"},
+        {"5 + true; 5;", "type mismatch: 5 + true"},
+        {"-true", "unknown operator: -true"},
+        {"true + false;", "unknown operator: true + false"},
+        {"5; true + false; 5", "unknown operator: true + false"}};
+    for (const auto &[input, expected] : tests) {
+        Object evaluated = testEval(input);
+        ASSERT_TRUE(std::holds_alternative<Error>(evaluated));
+        ASSERT_EQ(std::get<Error>(evaluated), expected);
+    }
+}

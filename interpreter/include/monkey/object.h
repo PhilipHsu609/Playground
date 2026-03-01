@@ -11,7 +11,8 @@ namespace monkey {
 
 struct ReturnValue;
 
-using Object = std::variant<int64_t, bool, std::nullptr_t, Box<ReturnValue>>;
+using Error = std::string;
+using Object = std::variant<int64_t, bool, std::nullptr_t, Box<ReturnValue>, Error>;
 
 struct ReturnValue {
     Object value;

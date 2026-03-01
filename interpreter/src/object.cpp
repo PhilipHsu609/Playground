@@ -13,7 +13,8 @@ std::string inspect(const Object &obj) {
             [](int64_t value) { return std::to_string(value); },
             [](bool value) -> std::string { return value ? "true" : "false"; },
             [](std::nullptr_t) -> std::string { return "null"; },
-            [](const Box<ReturnValue> &rv) -> std::string { return inspect(rv->value); }},
+            [](const Box<ReturnValue> &rv) -> std::string { return inspect(rv->value); },
+            [](const Error &err) -> std::string { return err; }},
         obj);
 }
 
