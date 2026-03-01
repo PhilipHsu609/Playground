@@ -7,6 +7,7 @@ target_sources(
     ${TEST_TARGET}
     PRIVATE
     ast_test.cpp
+    eval_test.cpp
     lexer_test.cpp
     parser_test.cpp
 )
