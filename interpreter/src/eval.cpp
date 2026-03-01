@@ -55,6 +55,10 @@ Object evalBlockStatements(const std::vector<Statement> &statements) {
 
 Object evalPrefixExpression(const PrefixExpression &expr) {
     auto right = eval(expr.right);
+
+    if (std::holds_alternative<Error>(right)) {
+        return right;
+    }
     if (expr.op == "!") {
         if (std::holds_alternative<bool>(right)) {
             return !std::get<bool>(right);
@@ -116,7 +120,14 @@ Object evalBooleanInfixExpression(const std::string &op, bool left, bool right) 
 
 Object evalInfixExpression(const InfixExpression &expr) {
     auto left = eval(expr.left);
+    if (std::holds_alternative<Error>(left)) {
+        return left;
+    }
+
     auto right = eval(expr.right);
+    if (std::holds_alternative<Error>(right)) {
+        return right;
+    }
 
     if (std::holds_alternative<int64_t>(left) && std::holds_alternative<int64_t>(right)) {
         int64_t leftVal = std::get<int64_t>(left);
@@ -134,6 +145,9 @@ Object evalInfixExpression(const InfixExpression &expr) {
 
 Object evalIfExpression(const IfExpression &expr) {
     auto condition = eval(expr.condition);
+    if (std::holds_alternative<Error>(condition)) {
+        return condition;
+    }
 
     if (isTrue(condition)) {
         return eval(expr.consequence);
@@ -160,7 +174,11 @@ Object eval(const Statement &statement) {
                                      return evalBlockStatements(stmt.statements);
                                  },
                                  [](const ReturnStatement &stmt) -> Object {
-                                     return ReturnValue{eval(stmt.value)};
+                                     auto result = eval(stmt.value);
+                                     if (std::holds_alternative<Error>(result)) {
+                                         return result;
+                                     }
+                                     return ReturnValue{result};
                                  },
                                  [](const auto &) -> Object { return Object{}; }},
                       statement);
