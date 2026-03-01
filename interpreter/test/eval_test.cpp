@@ -81,3 +81,22 @@ TEST(EvalTest, BangOperator) {
         testBooleanObject(evaluated, expected);
     }
 }
+
+TEST(EvalTest, IfElseExpression) {
+    std::vector<std::pair<std::string, Object>> tests = {
+        {"if (true) { 10 }", 10},
+        {"if (false) { 10 }", nullptr},
+        {"if (1) { 10 }", 10},
+        {"if (1 < 2) { 10 }", 10},
+        {"if (1 > 2) { 10 }", nullptr},
+        {"if (1 > 2) { 10 } else { 20 }", 20},
+        {"if (1 < 2) { 10 } else { 20 }", 10}};
+    for (const auto &[input, expected] : tests) {
+        Object evaluated = testEval(input);
+        if (std::holds_alternative<int64_t>(expected)) {
+            testIntegerObject(evaluated, std::get<int64_t>(expected));
+        } else {
+            ASSERT_TRUE(std::holds_alternative<std::nullptr_t>(evaluated));
+        }
+    }
+}

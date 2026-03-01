@@ -5,10 +5,29 @@
 
 #include <cstdint>
 #include <variant>
+#include <vector>
 
 namespace {
 
 using namespace monkey;
+
+bool isTrue(const Object &obj) {
+    if (std::holds_alternative<bool>(obj)) {
+        return std::get<bool>(obj);
+    }
+    if (std::holds_alternative<std::nullptr_t>(obj)) {
+        return false;
+    }
+    return true;
+}
+
+Object evalStatements(const std::vector<Statement> &statements) {
+    Object result;
+    for (const auto &statement : statements) {
+        result = eval(statement);
+    }
+    return result;
+}
 
 Object evalPrefixExpression(const PrefixExpression &expr) {
     auto right = eval(expr.right);
@@ -77,21 +96,32 @@ Object evalInfixExpression(const InfixExpression &expr) {
     return nullptr;
 }
 
+Object evalIfExpression(const IfExpression &expr) {
+    auto condition = eval(expr.condition);
+
+    if (isTrue(condition)) {
+        return eval(expr.consequence);
+    }
+
+    if (expr.alternative.has_value()) {
+        return eval(*expr.alternative);
+    }
+
+    return nullptr;
+}
+
 } // namespace
 
 namespace monkey {
 
-Object eval(const Program &program) {
-    Object result;
-    for (const auto &statement : program.statements) {
-        result = eval(statement);
-    }
-    return result;
-}
+Object eval(const Program &program) { return evalStatements(program.statements); }
 
 Object eval(const Statement &statement) {
     return std::visit(overloaded{[](const ExpressionStatement &stmt) -> Object {
                                      return eval(stmt.expression);
+                                 },
+                                 [](const BlockStatement &stmt) -> Object {
+                                     return evalStatements(stmt.statements);
                                  },
                                  [](const auto &) -> Object { return Object{}; }},
                       statement);
@@ -106,6 +136,9 @@ Object eval(const Expression &expression) {
                    },
                    [](const Box<InfixExpression> &expr) -> Object {
                        return evalInfixExpression(*expr);
+                   },
+                   [](const Box<IfExpression> &expr) -> Object {
+                       return evalIfExpression(*expr);
                    },
                    [](const auto &) -> Object { return Object{}; }},
         expression);
