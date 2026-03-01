@@ -1,3 +1,5 @@
+#include "monkey/repl.h"
+#include "monkey/eval.h"
 #include "monkey/lexer.h"
 #include "monkey/parser.h"
 
@@ -56,7 +58,8 @@ void start(std::istream &input, std::ostream &output) {
             continue;
         }
 
-        fmt::print(output, "{}\n", toString(*program));
+        Object result = eval(*program);
+        fmt::print(output, "{}\n", inspect(result));
     }
 }
 
