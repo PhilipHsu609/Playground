@@ -1,5 +1,7 @@
 #pragma once
 
+#include "monkey/box.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -7,7 +9,13 @@
 
 namespace monkey {
 
-using Object = std::variant<int64_t, bool, std::nullptr_t>;
+struct ReturnValue;
+
+using Object = std::variant<int64_t, bool, std::nullptr_t, Box<ReturnValue>>;
+
+struct ReturnValue {
+    Object value;
+};
 
 std::string inspect(const Object &obj);
 

@@ -1,4 +1,5 @@
 #include "monkey/ast.h"
+#include "monkey/box.h"
 #include "monkey/overload.h"
 
 #include <fmt/format.h>

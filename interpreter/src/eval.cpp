@@ -1,9 +1,11 @@
 #include "monkey/eval.h"
 #include "monkey/ast.h"
+#include "monkey/box.h"
 #include "monkey/object.h"
 #include "monkey/overload.h"
 
 #include <cstdint>
+#include <string>
 #include <variant>
 #include <vector>
 
@@ -21,10 +23,24 @@ bool isTrue(const Object &obj) {
     return true;
 }
 
-Object evalStatements(const std::vector<Statement> &statements) {
+Object evalProgram(const std::vector<Statement> &statements) {
     Object result;
     for (const auto &statement : statements) {
         result = eval(statement);
+        if (std::holds_alternative<Box<ReturnValue>>(result)) {
+            return std::get<Box<ReturnValue>>(result)->value;
+        }
+    }
+    return result;
+}
+
+Object evalBlockStatements(const std::vector<Statement> &statements) {
+    Object result;
+    for (const auto &statement : statements) {
+        result = eval(statement);
+        if (std::holds_alternative<Box<ReturnValue>>(result)) {
+            return result;
+        }
     }
     return result;
 }
@@ -114,14 +130,17 @@ Object evalIfExpression(const IfExpression &expr) {
 
 namespace monkey {
 
-Object eval(const Program &program) { return evalStatements(program.statements); }
+Object eval(const Program &program) { return evalProgram(program.statements); }
 
 Object eval(const Statement &statement) {
     return std::visit(overloaded{[](const ExpressionStatement &stmt) -> Object {
                                      return eval(stmt.expression);
                                  },
                                  [](const BlockStatement &stmt) -> Object {
-                                     return evalStatements(stmt.statements);
+                                     return evalBlockStatements(stmt.statements);
+                                 },
+                                 [](const ReturnStatement &stmt) -> Object {
+                                     return ReturnValue{eval(stmt.value)};
                                  },
                                  [](const auto &) -> Object { return Object{}; }},
                       statement);

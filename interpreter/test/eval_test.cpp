@@ -100,3 +100,16 @@ TEST(EvalTest, IfElseExpression) {
         }
     }
 }
+
+TEST(EvalTest, ReturnStatements) {
+    std::vector<std::pair<std::string, int64_t>> tests = {
+        {"return 10;", 10},
+        {"return 10; 9;", 10},
+        {"return 2 * 5; 9;", 10},
+        {"9; return 2 * 5; 9;", 10},
+        {"if (10 > 1) { if (10 > 1) { return 10; } return 1; }", 10}};
+    for (const auto &[input, expected] : tests) {
+        Object evaluated = testEval(input);
+        testIntegerObject(evaluated, expected);
+    }
+}
