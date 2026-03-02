@@ -1,3 +1,4 @@
+#include "monkey/env.h"
 #include "monkey/eval.h"
 #include "monkey/lexer.h"
 #include "monkey/object.h"
@@ -15,7 +16,8 @@ using namespace monkey;
 Object testEval(const std::string &input) {
     auto parser = Parser(Lexer(input));
     auto program = parser.parseProgram();
-    return eval(*program);
+    auto env = Environment();
+    return eval(*program, env);
 }
 
 void testIntegerObject(const Object &obj, int64_t expected) {
@@ -120,10 +122,24 @@ TEST(EvalTest, ErrorHandling) {
         {"5 + true; 5;", "type mismatch: 5 + true"},
         {"-true", "unknown operator: -true"},
         {"true + false;", "unknown operator: true + false"},
-        {"5; true + false; 5", "unknown operator: true + false"}};
+        {"5; true + false; 5", "unknown operator: true + false"},
+        {"if (10 > 1) { true + false; }", "unknown operator: true + false"},
+        {"foobar", "identifier not found: foobar"}};
     for (const auto &[input, expected] : tests) {
         Object evaluated = testEval(input);
         ASSERT_TRUE(std::holds_alternative<Error>(evaluated));
         ASSERT_EQ(std::get<Error>(evaluated), expected);
+    }
+}
+
+TEST(EvalTest, LetStatements) {
+    std::vector<std::pair<std::string, int64_t>> tests = {
+        {"let a = 5; a;", 5},
+        {"let a = 5 * 5; a;", 25},
+        {"let a = 5; let b = a; b;", 5},
+        {"let a = 5; let b = a; let c = a + b + 5; c;", 15}};
+    for (const auto &[input, expected] : tests) {
+        Object evaluated = testEval(input);
+        testIntegerObject(evaluated, expected);
     }
 }

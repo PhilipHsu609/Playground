@@ -1,4 +1,5 @@
 #include "monkey/repl.h"
+#include "monkey/env.h"
 #include "monkey/eval.h"
 #include "monkey/lexer.h"
 #include "monkey/parser.h"
@@ -40,6 +41,7 @@ void printParserErrors(const std::vector<std::string> &errors, std::ostream &out
 namespace monkey {
 
 void start(std::istream &input, std::ostream &output) {
+    Environment env;
     while (true) {
         fmt::print(PROMPT);
 
@@ -58,7 +60,7 @@ void start(std::istream &input, std::ostream &output) {
             continue;
         }
 
-        Object result = eval(*program);
+        Object result = eval(*program, env);
         fmt::print(output, "{}\n", inspect(result));
     }
 }

@@ -1,6 +1,7 @@
 #include "monkey/eval.h"
 #include "monkey/ast.h"
 #include "monkey/box.h"
+#include "monkey/env.h"
 #include "monkey/object.h"
 #include "monkey/overload.h"
 
@@ -25,10 +26,10 @@ bool isTrue(const Object &obj) {
     return true;
 }
 
-Object evalProgram(const std::vector<Statement> &statements) {
+Object evalProgram(const std::vector<Statement> &statements, Environment &env) {
     Object result;
     for (const auto &statement : statements) {
-        result = eval(statement);
+        result = eval(statement, env);
         if (std::holds_alternative<Box<ReturnValue>>(result)) {
             return std::get<Box<ReturnValue>>(result)->value;
         }
@@ -39,10 +40,10 @@ Object evalProgram(const std::vector<Statement> &statements) {
     return result;
 }
 
-Object evalBlockStatements(const std::vector<Statement> &statements) {
+Object evalBlockStatements(const std::vector<Statement> &statements, Environment &env) {
     Object result;
     for (const auto &statement : statements) {
-        result = eval(statement);
+        result = eval(statement, env);
         if (std::holds_alternative<Box<ReturnValue>>(result)) {
             return result;
         }
@@ -53,8 +54,17 @@ Object evalBlockStatements(const std::vector<Statement> &statements) {
     return result;
 }
 
-Object evalPrefixExpression(const PrefixExpression &expr) {
-    auto right = eval(expr.right);
+Object evalLetStatement(const LetStatement &stmt, Environment &env) {
+    auto value = eval(stmt.value, env);
+    if (std::holds_alternative<Error>(value)) {
+        return value;
+    }
+    env.set(tokenLiteral(stmt.name), value);
+    return nullptr;
+}
+
+Object evalPrefixExpression(const PrefixExpression &expr, Environment &env) {
+    auto right = eval(expr.right, env);
 
     if (std::holds_alternative<Error>(right)) {
         return right;
@@ -118,13 +128,13 @@ Object evalBooleanInfixExpression(const std::string &op, bool left, bool right) 
     return Error{fmt::format("unknown operator: {} {} {}", left, op, right)};
 }
 
-Object evalInfixExpression(const InfixExpression &expr) {
-    auto left = eval(expr.left);
+Object evalInfixExpression(const InfixExpression &expr, Environment &env) {
+    auto left = eval(expr.left, env);
     if (std::holds_alternative<Error>(left)) {
         return left;
     }
 
-    auto right = eval(expr.right);
+    auto right = eval(expr.right, env);
     if (std::holds_alternative<Error>(right)) {
         return right;
     }
@@ -143,60 +153,76 @@ Object evalInfixExpression(const InfixExpression &expr) {
                              tokenLiteral(expr.right))};
 }
 
-Object evalIfExpression(const IfExpression &expr) {
-    auto condition = eval(expr.condition);
+Object evalIfExpression(const IfExpression &expr, Environment &env) {
+    auto condition = eval(expr.condition, env);
     if (std::holds_alternative<Error>(condition)) {
         return condition;
     }
 
     if (isTrue(condition)) {
-        return eval(expr.consequence);
+        return eval(expr.consequence, env);
     }
 
     if (expr.alternative.has_value()) {
-        return eval(*expr.alternative);
+        return eval(*expr.alternative, env);
     }
 
     return nullptr;
+}
+
+Object evalIdentifier(const Identifier &expr, Environment &env) {
+    auto value = env.get(tokenLiteral(expr));
+    if (value.has_value()) {
+        return *value;
+    }
+    return Error{fmt::format("identifier not found: {}", tokenLiteral(expr))};
 }
 
 } // namespace
 
 namespace monkey {
 
-Object eval(const Program &program) { return evalProgram(program.statements); }
+Object eval(const Program &program, Environment &env) {
+    return evalProgram(program.statements, env);
+}
 
-Object eval(const Statement &statement) {
-    return std::visit(overloaded{[](const ExpressionStatement &stmt) -> Object {
-                                     return eval(stmt.expression);
+Object eval(const Statement &statement, Environment &env) {
+    return std::visit(overloaded{[&env](const ExpressionStatement &stmt) -> Object {
+                                     return eval(stmt.expression, env);
                                  },
-                                 [](const BlockStatement &stmt) -> Object {
-                                     return evalBlockStatements(stmt.statements);
+                                 [&env](const BlockStatement &stmt) -> Object {
+                                     return evalBlockStatements(stmt.statements, env);
                                  },
-                                 [](const ReturnStatement &stmt) -> Object {
-                                     auto result = eval(stmt.value);
+                                 [&env](const ReturnStatement &stmt) -> Object {
+                                     auto result = eval(stmt.value, env);
                                      if (std::holds_alternative<Error>(result)) {
                                          return result;
                                      }
                                      return ReturnValue{result};
                                  },
+                                 [&env](const LetStatement &stmt) -> Object {
+                                     return evalLetStatement(stmt, env);
+                                 },
                                  [](const auto &) -> Object { return Object{}; }},
                       statement);
 }
 
-Object eval(const Expression &expression) {
+Object eval(const Expression &expression, Environment &env) {
     return std::visit(
         overloaded{
             [](const IntegerLiteral &expr) -> Object { return expr.value; },
             [](const BooleanLiteral &expr) -> Object { return expr.value; },
-            [](const Box<PrefixExpression> &expr) -> Object {
-                return evalPrefixExpression(*expr);
+            [&env](const Identifier &expr) -> Object {
+                return evalIdentifier(expr, env);
             },
-            [](const Box<InfixExpression> &expr) -> Object {
-                return evalInfixExpression(*expr);
+            [&env](const Box<PrefixExpression> &expr) -> Object {
+                return evalPrefixExpression(*expr, env);
             },
-            [](const Box<IfExpression> &expr) -> Object {
-                return evalIfExpression(*expr);
+            [&env](const Box<InfixExpression> &expr) -> Object {
+                return evalInfixExpression(*expr, env);
+            },
+            [&env](const Box<IfExpression> &expr) -> Object {
+                return evalIfExpression(*expr, env);
             },
             [](const auto &) -> Object { return Error{"unknown expression type"}; }},
         expression);

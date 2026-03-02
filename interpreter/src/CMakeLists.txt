@@ -5,6 +5,7 @@ target_sources(
     monkey_lib
     PRIVATE
     ast.cpp
+    env.cpp
     eval.cpp
     lexer.cpp
     object.cpp
