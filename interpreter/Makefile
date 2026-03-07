@@ -15,7 +15,7 @@ config:
 	cmake $(CMAKE_FLAGS) -S . -B $(BUILD_DIR)
 
 build:
-	cmake --build $(BUILD_DIR)
+	cmake --build $(BUILD_DIR) --parallel
 
 test:
 	cd $(BUILD_DIR)/test && ctest --output-on-failure
