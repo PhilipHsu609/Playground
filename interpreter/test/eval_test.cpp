@@ -16,7 +16,7 @@ using namespace monkey;
 Object testEval(const std::string &input) {
     auto parser = Parser(Lexer(input));
     auto program = parser.parseProgram();
-    auto env = Environment();
+    auto env = makeEnvironment();
     return eval(*program, env);
 }
 
@@ -138,6 +138,34 @@ TEST(EvalTest, LetStatements) {
         {"let a = 5 * 5; a;", 25},
         {"let a = 5; let b = a; b;", 5},
         {"let a = 5; let b = a; let c = a + b + 5; c;", 15}};
+    for (const auto &[input, expected] : tests) {
+        Object evaluated = testEval(input);
+        testIntegerObject(evaluated, expected);
+    }
+}
+
+TEST(EvalTest, FunctionObject) {
+    std::string input = "fn(x) { x + 2; };";
+
+    Object evaluated = testEval(input);
+    ASSERT_TRUE(std::holds_alternative<Box<Function>>(evaluated));
+
+    auto fn = std::get<Box<Function>>(evaluated);
+    ASSERT_EQ(fn->parameters.size(), 1);
+    ASSERT_EQ(tokenLiteral(fn->parameters[0]), "x");
+
+    std::string expectedBody = "{ (x + 2) }";
+    ASSERT_EQ(toString(fn->body), expectedBody);
+}
+
+TEST(EvalTest, FunctionApplication) {
+    std::vector<std::pair<std::string, int64_t>> tests = {
+        {"let identity = fn(x) { x; }; identity(5);", 5},
+        {"let identity = fn(x) { return x; }; identity(5);", 5},
+        {"let double = fn(x) { x * 2; }; double(5);", 10},
+        {"let add = fn(x, y) { x + y; }; add(5, 5);", 10},
+        {"let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));", 20},
+        {"fn(x) { x; }(5)", 5}};
     for (const auto &[input, expected] : tests) {
         Object evaluated = testEval(input);
         testIntegerObject(evaluated, expected);

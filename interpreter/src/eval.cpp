@@ -8,6 +8,8 @@
 #include <fmt/format.h>
 
 #include <cstdint>
+#include <memory>
+#include <ranges>
 #include <string>
 #include <variant>
 #include <vector>
@@ -26,7 +28,8 @@ bool isTrue(const Object &obj) {
     return true;
 }
 
-Object evalProgram(const std::vector<Statement> &statements, Environment &env) {
+Object evalProgram(const std::vector<Statement> &statements,
+                   const std::shared_ptr<Environment> &env) {
     Object result;
     for (const auto &statement : statements) {
         result = eval(statement, env);
@@ -40,7 +43,8 @@ Object evalProgram(const std::vector<Statement> &statements, Environment &env) {
     return result;
 }
 
-Object evalBlockStatements(const std::vector<Statement> &statements, Environment &env) {
+Object evalBlockStatements(const std::vector<Statement> &statements,
+                           const std::shared_ptr<Environment> &env) {
     Object result;
     for (const auto &statement : statements) {
         result = eval(statement, env);
@@ -54,16 +58,31 @@ Object evalBlockStatements(const std::vector<Statement> &statements, Environment
     return result;
 }
 
-Object evalLetStatement(const LetStatement &stmt, Environment &env) {
+Object evalLetStatement(const LetStatement &stmt,
+                        const std::shared_ptr<Environment> &env) {
     auto value = eval(stmt.value, env);
     if (std::holds_alternative<Error>(value)) {
         return value;
     }
-    env.set(tokenLiteral(stmt.name), value);
+    env->set(tokenLiteral(stmt.name), value);
     return nullptr;
 }
 
-Object evalPrefixExpression(const PrefixExpression &expr, Environment &env) {
+std::vector<Object> evalExpressions(const std::vector<Expression> &exps,
+                                    const std::shared_ptr<Environment> &env) {
+    std::vector<Object> result;
+    for (const auto &e : exps) {
+        auto evaluated = eval(e, env);
+        if (std::holds_alternative<Error>(evaluated)) {
+            return {evaluated};
+        }
+        result.push_back(evaluated);
+    }
+    return result;
+}
+
+Object evalPrefixExpression(const PrefixExpression &expr,
+                            const std::shared_ptr<Environment> &env) {
     auto right = eval(expr.right, env);
 
     if (std::holds_alternative<Error>(right)) {
@@ -128,7 +147,8 @@ Object evalBooleanInfixExpression(const std::string &op, bool left, bool right) 
     return Error{fmt::format("unknown operator: {} {} {}", left, op, right)};
 }
 
-Object evalInfixExpression(const InfixExpression &expr, Environment &env) {
+Object evalInfixExpression(const InfixExpression &expr,
+                           const std::shared_ptr<Environment> &env) {
     auto left = eval(expr.left, env);
     if (std::holds_alternative<Error>(left)) {
         return left;
@@ -153,7 +173,8 @@ Object evalInfixExpression(const InfixExpression &expr, Environment &env) {
                              tokenLiteral(expr.right))};
 }
 
-Object evalIfExpression(const IfExpression &expr, Environment &env) {
+Object evalIfExpression(const IfExpression &expr,
+                        const std::shared_ptr<Environment> &env) {
     auto condition = eval(expr.condition, env);
     if (std::holds_alternative<Error>(condition)) {
         return condition;
@@ -170,23 +191,59 @@ Object evalIfExpression(const IfExpression &expr, Environment &env) {
     return nullptr;
 }
 
-Object evalIdentifier(const Identifier &expr, Environment &env) {
-    auto value = env.get(tokenLiteral(expr));
+Object evalIdentifier(const Identifier &expr, const std::shared_ptr<Environment> &env) {
+    auto value = env->get(tokenLiteral(expr));
     if (value.has_value()) {
         return *value;
     }
     return Error{fmt::format("identifier not found: {}", tokenLiteral(expr))};
 }
 
+Object evalCallExpression(const CallExpression &expr,
+                          const std::shared_ptr<Environment> &env) {
+    // Evaluate the function whether it's a function literal or an identifier
+    auto function = eval(expr.function, env);
+    if (std::holds_alternative<Error>(function)) {
+        return function;
+    }
+
+    // Evaluate the arguments
+    auto args = evalExpressions(expr.arguments, env);
+    if (!args.empty() && std::holds_alternative<Error>(args[0])) {
+        return args[0];
+    }
+
+    if (!std::holds_alternative<Box<Function>>(function)) {
+        return Error{fmt::format("not a function: {}", inspect(function))};
+    }
+
+    // Extend the function's environment with the arguments from the ouside
+    auto fn = std::get<Box<Function>>(function);
+    auto extendedEnv = std::make_shared<Environment>(fn->env);
+    for (const auto &[param, arg] : std::views::zip(fn->parameters, args)) {
+        extendedEnv->set(tokenLiteral(param), arg);
+    }
+
+    // Evaluate the function body in the extended environment
+    auto evaluated = eval(fn->body, extendedEnv);
+
+    // Unwrap the return value if it's a ReturnValue, otherwise return the evaluated
+    // result
+    if (std::holds_alternative<Box<ReturnValue>>(evaluated)) {
+        return std::get<Box<ReturnValue>>(evaluated)->value;
+    }
+    return evaluated;
+}
+
 } // namespace
 
 namespace monkey {
 
-Object eval(const Program &program, Environment &env) {
+Object eval(const Program &program, const std::shared_ptr<Environment> &env) {
     return evalProgram(program.statements, env);
 }
 
-Object eval(const Statement &statement, Environment &env) {
+Object eval(const Statement &statement, const std::shared_ptr<Environment> &env) {
     return std::visit(overloaded{[&env](const ExpressionStatement &stmt) -> Object {
                                      return eval(stmt.expression, env);
                                  },
@@ -207,7 +264,7 @@ Object eval(const Statement &statement, Environment &env) {
                       statement);
 }
 
-Object eval(const Expression &expression, Environment &env) {
+Object eval(const Expression &expression, const std::shared_ptr<Environment> &env) {
     return std::visit(
         overloaded{
             [](const IntegerLiteral &expr) -> Object { return expr.value; },
@@ -223,6 +280,12 @@ Object eval(const Expression &expression, Environment &env) {
             },
             [&env](const Box<IfExpression> &expr) -> Object {
                 return evalIfExpression(*expr, env);
+            },
+            [&env](const Box<FunctionLiteral> &expr) -> Object {
+                return Function{expr->parameters, expr->body, env};
+            },
+            [&env](const Box<CallExpression> &expr) -> Object {
+                return evalCallExpression(*expr, env);
             },
             [](const auto &) -> Object { return Error{"unknown expression type"}; }},
         expression);

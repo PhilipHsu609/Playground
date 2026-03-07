@@ -41,7 +41,7 @@ void printParserErrors(const std::vector<std::string> &errors, std::ostream &out
 namespace monkey {
 
 void start(std::istream &input, std::ostream &output) {
-    Environment env;
+    auto env = makeEnvironment();
     while (true) {
         fmt::print(PROMPT);
 

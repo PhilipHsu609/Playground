@@ -2,6 +2,10 @@
 #include "monkey/box.h"
 #include "monkey/overload.h"
 
+#include <fmt/format.h>
+#include <fmt/ranges.h>
+
+#include <ranges>
 #include <string>
 #include <variant>
 
@@ -14,6 +18,15 @@ std::string inspect(const Object &obj) {
             [](bool value) -> std::string { return value ? "true" : "false"; },
             [](std::nullptr_t) -> std::string { return "null"; },
             [](const Box<ReturnValue> &rv) -> std::string { return inspect(rv->value); },
+            [](const Box<Function> &fn) -> std::string {
+                return fmt::format(
+                    "fn({}) {}",
+                    fmt::join(std::views::transform(
+                                  fn->parameters,
+                                  [](const Identifier &p) { return tokenLiteral(p); }),
+                              ", "),
+                    toString(fn->body));
+            },
             [](const Error &err) -> std::string { return err; }},
         obj);
 }
