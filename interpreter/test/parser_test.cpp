@@ -640,3 +640,38 @@ TEST(ParserTest, CallExpressionParsing) {
     testInfixExpression(call->arguments[1], 2, "*", 3);
     testInfixExpression(call->arguments[2], 4, "+", 5);
 }
+
+TEST(ParserTest, StringLiteralExpression) {
+    std::string input = R"("hello world")";
+
+    auto parser = Parser(Lexer(input));
+    auto program = parser.parseProgram();
+
+    checkParserErrors(parser);
+
+    if (program == nullptr) {
+        FAIL() << "parseProgram() returned nullptr";
+    }
+
+    if (program->statements.size() != 1) {
+        FAIL() << "program.statements does not contain 1 statement. got="
+               << program->statements.size();
+    }
+
+    const auto &stmt = program->statements[0];
+    const auto *exprStmt = std::get_if<ExpressionStatement>(&stmt);
+
+    if (exprStmt == nullptr) {
+        FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
+    }
+
+    const auto *stringLiteral = std::get_if<StringLiteral>(&exprStmt->expression);
+
+    if (stringLiteral == nullptr) {
+        FAIL() << "expression not StringLiteral. got="
+               << typeid(exprStmt->expression).name();
+    }
+
+    EXPECT_EQ(stringLiteral->value, "hello world")
+        << "stringLiteral.value not 'hello world'. got=" << stringLiteral->value;
+}

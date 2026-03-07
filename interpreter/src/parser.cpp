@@ -56,6 +56,7 @@ Parser::Parser(Lexer lexer) : lexer_(std::move(lexer)) {
     registerPrefix(TokenType::INT, [this]() { return this->parseIntegerLiteral(); });
     registerPrefix(TokenType::TRUE, [this]() { return this->parseBoolean(); });
     registerPrefix(TokenType::FALSE, [this]() { return this->parseBoolean(); });
+    registerPrefix(TokenType::STRING, [this]() { return this->parseStringLiteral(); });
     registerPrefix(TokenType::BANG, [this]() { return this->parsePrefixExpression(); });
     registerPrefix(TokenType::MINUS, [this]() { return this->parsePrefixExpression(); });
     registerPrefix(TokenType::LPAREN,
@@ -321,6 +322,10 @@ std::optional<Expression> Parser::parseFunctionLiteral() {
     func.body = std::move(*body);
 
     return func;
+}
+
+std::optional<Expression> Parser::parseStringLiteral() {
+    return StringLiteral{.token = currentToken_, .value = currentToken_.literal};
 }
 
 std::optional<Expression> Parser::parseBoolean() {

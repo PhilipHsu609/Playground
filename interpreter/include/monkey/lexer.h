@@ -14,6 +14,7 @@ class Lexer {
 
   private:
     void readChar();
+    std::string readString();
     [[nodiscard]] char peekChar() const;
     void skipWhitespace();
     std::string readWhile(bool (*condition)(char));

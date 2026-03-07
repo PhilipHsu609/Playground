@@ -169,6 +169,16 @@ Object evalInfixExpression(const InfixExpression &expr,
         bool rightVal = std::get<bool>(right);
         return evalBooleanInfixExpression(expr.op, leftVal, rightVal);
     }
+    if (std::holds_alternative<String>(left) && std::holds_alternative<String>(right)) {
+        const auto &leftVal = std::get<String>(left).value;
+        const auto &rightVal = std::get<String>(right).value;
+        if (expr.op == "+") {
+            return String{leftVal + rightVal};
+        }
+        return Error{
+            fmt::format("unknown operator: {} {} {}", leftVal, expr.op, rightVal)};
+    }
+
     return Error{fmt::format("type mismatch: {} {} {}", tokenLiteral(expr.left), expr.op,
                              tokenLiteral(expr.right))};
 }
@@ -269,6 +279,7 @@ Object eval(const Expression &expression, const std::shared_ptr<Environment> &en
         overloaded{
             [](const IntegerLiteral &expr) -> Object { return expr.value; },
             [](const BooleanLiteral &expr) -> Object { return expr.value; },
+            [](const StringLiteral &expr) -> Object { return String{expr.value}; },
             [&env](const Identifier &expr) -> Object {
                 return evalIdentifier(expr, env);
             },

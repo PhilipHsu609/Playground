@@ -1,6 +1,8 @@
 #include "monkey/lexer.h"
 #include "monkey/token.h"
 
+#include <string>
+
 namespace {
 constexpr bool isLetter(char ch) {
     return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_';
@@ -20,6 +22,14 @@ void Lexer::readChar() {
         ch_ = input_[read_position_];
     }
     position_ = read_position_++;
+}
+
+std::string Lexer::readString() {
+    auto start = position_ + 1; // skip the opening quote
+    do {
+        readChar();
+    } while (ch_ != '"' && ch_ != 0);
+    return input_.substr(start, position_ - start);
 }
 
 char Lexer::peekChar() const {
@@ -86,6 +96,9 @@ Token Lexer::nextToken() {
         break;
     case ',':
         token = {TokenType::COMMA, ","};
+        break;
+    case '"':
+        token = {TokenType::STRING, readString()};
         break;
     case 0:
         token = {TokenType::EOF_TOKEN, ""};

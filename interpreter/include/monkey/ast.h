@@ -37,10 +37,15 @@ struct BooleanLiteral {
     bool value = false;
 };
 
+struct StringLiteral {
+    Token token;
+    std::string value;
+};
+
 using Expression =
-    std::variant<Identifier, IntegerLiteral, BooleanLiteral, Box<PrefixExpression>,
-                 Box<InfixExpression>, Box<IfExpression>, Box<FunctionLiteral>,
-                 Box<CallExpression>>;
+    std::variant<Identifier, IntegerLiteral, BooleanLiteral, StringLiteral,
+                 Box<PrefixExpression>, Box<InfixExpression>, Box<IfExpression>,
+                 Box<FunctionLiteral>, Box<CallExpression>>;
 
 // Recursive expression types definitions
 struct PrefixExpression {

@@ -16,6 +16,7 @@ std::string inspect(const Object &obj) {
         overloaded{
             [](int64_t value) { return std::to_string(value); },
             [](bool value) -> std::string { return value ? "true" : "false"; },
+            [](const String &s) -> std::string { return s.value; },
             [](std::nullptr_t) -> std::string { return "null"; },
             [](const Box<ReturnValue> &rv) -> std::string { return inspect(rv->value); },
             [](const Box<Function> &fn) -> std::string {
@@ -27,7 +28,7 @@ std::string inspect(const Object &obj) {
                               ", "),
                     toString(fn->body));
             },
-            [](const Error &err) -> std::string { return err; }},
+            [](const Error &err) -> std::string { return "ERROR: " + err.message; }},
         obj);
 }
 

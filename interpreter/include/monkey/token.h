@@ -40,6 +40,8 @@ enum class TokenType {
     IF,
     ELSE,
     RETURN,
+    // Data types
+    STRING,
 };
 
 struct Token {

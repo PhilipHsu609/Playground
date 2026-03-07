@@ -124,11 +124,12 @@ TEST(EvalTest, ErrorHandling) {
         {"true + false;", "unknown operator: true + false"},
         {"5; true + false; 5", "unknown operator: true + false"},
         {"if (10 > 1) { true + false; }", "unknown operator: true + false"},
-        {"foobar", "identifier not found: foobar"}};
+        {"foobar", "identifier not found: foobar"},
+        {R"("Hello" - "World")", "unknown operator: Hello - World"}};
     for (const auto &[input, expected] : tests) {
         Object evaluated = testEval(input);
         ASSERT_TRUE(std::holds_alternative<Error>(evaluated));
-        ASSERT_EQ(std::get<Error>(evaluated), expected);
+        ASSERT_EQ(std::get<Error>(evaluated).message, expected);
     }
 }
 
@@ -170,4 +171,20 @@ TEST(EvalTest, FunctionApplication) {
         Object evaluated = testEval(input);
         testIntegerObject(evaluated, expected);
     }
+}
+
+TEST(EvalTest, StringLiteral) {
+    std::string input = R"("Hello, world!")";
+
+    Object evaluated = testEval(input);
+    ASSERT_TRUE(std::holds_alternative<String>(evaluated));
+    ASSERT_EQ(std::get<String>(evaluated).value, "Hello, world!");
+}
+
+TEST(EvalTest, StringConcatenation) {
+    std::string input = R"("Hello, " + "world!")";
+
+    Object evaluated = testEval(input);
+    ASSERT_TRUE(std::holds_alternative<String>(evaluated));
+    ASSERT_EQ(std::get<String>(evaluated).value, "Hello, world!");
 }
