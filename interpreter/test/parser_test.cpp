@@ -380,6 +380,9 @@ TEST(ParserTest, OperatorPrecedenceParsing) {
         {"add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
          "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))"},
         {"add(a + b + c * d / f + g)", "add((((a + b) + ((c * d) / f)) + g))"},
+        {"a * [1, 2, 3, 4][b * c] * d", "((a * ([1, 2, 3, 4][(b * c)])) * d)"},
+        {"add(a * b[2], b[1], 2 * [1, 2][1])",
+         "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))"},
     };
 
     for (const auto &[input, expected] : tests) {
@@ -674,4 +677,78 @@ TEST(ParserTest, StringLiteralExpression) {
 
     EXPECT_EQ(stringLiteral->value, "hello world")
         << "stringLiteral.value not 'hello world'. got=" << stringLiteral->value;
+}
+
+TEST(ParserTest, ArrayLiteralParsing) {
+    std::string input = "[1, 2 * 2, 3 + 3]";
+
+    auto parser = Parser(Lexer(input));
+    auto program = parser.parseProgram();
+
+    checkParserErrors(parser);
+
+    if (program == nullptr) {
+        FAIL() << "parseProgram() returned nullptr";
+    }
+
+    if (program->statements.size() != 1) {
+        FAIL() << "program.statements does not contain 1 statement. got="
+               << program->statements.size();
+    }
+
+    const auto &stmt = program->statements[0];
+    const auto *exprStmt = std::get_if<ExpressionStatement>(&stmt);
+
+    if (exprStmt == nullptr) {
+        FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
+    }
+
+    const auto *arrayLiteral = std::get_if<Box<ArrayLiteral>>(&exprStmt->expression);
+
+    if (arrayLiteral == nullptr) {
+        FAIL() << "expression not ArrayLiteral. got="
+               << typeid(exprStmt->expression).name();
+    }
+
+    const auto &array = *arrayLiteral;
+    EXPECT_EQ(array->elements.size(), 3);
+    testLiteralExpression(array->elements[0], 1);
+    testInfixExpression(array->elements[1], 2, "*", 2);
+    testInfixExpression(array->elements[2], 3, "+", 3);
+}
+
+TEST(ParserTest, IndexExpressionParsing) {
+    std::string input = "myArray[1 + 1]";
+
+    auto parser = Parser(Lexer(input));
+    auto program = parser.parseProgram();
+
+    checkParserErrors(parser);
+
+    if (program == nullptr) {
+        FAIL() << "parseProgram() returned nullptr";
+    }
+
+    if (program->statements.size() != 1) {
+        FAIL() << "program.statements does not contain 1 statement. got="
+               << program->statements.size();
+    }
+
+    const auto &stmt = program->statements[0];
+    const auto *exprStmt = std::get_if<ExpressionStatement>(&stmt);
+
+    if (exprStmt == nullptr) {
+        FAIL() << "stmt not ExpressionStatement. got=" << typeid(stmt).name();
+    }
+
+    const auto *indexExpr = std::get_if<Box<IndexExpression>>(&exprStmt->expression);
+
+    if (indexExpr == nullptr) {
+        FAIL() << "expression not IndexExpression. got="
+               << typeid(exprStmt->expression).name();
+    }
+
+    const auto &index = *indexExpr;
+    testIdentifier(index->left, "myArray");
+    testInfixExpression(index->index, 1, "+", 1);
 }

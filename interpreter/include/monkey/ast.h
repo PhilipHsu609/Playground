@@ -21,6 +21,8 @@ struct IfExpression;
 struct BlockStatement;
 struct FunctionLiteral;
 struct CallExpression;
+struct ArrayLiteral;
+struct IndexExpression;
 
 // Leaf expression types definitions
 struct Identifier {
@@ -45,7 +47,8 @@ struct StringLiteral {
 using Expression =
     std::variant<Identifier, IntegerLiteral, BooleanLiteral, StringLiteral,
                  Box<PrefixExpression>, Box<InfixExpression>, Box<IfExpression>,
-                 Box<FunctionLiteral>, Box<CallExpression>>;
+                 Box<FunctionLiteral>, Box<CallExpression>, Box<ArrayLiteral>,
+                 Box<IndexExpression>>;
 
 // Recursive expression types definitions
 struct PrefixExpression {
@@ -65,6 +68,17 @@ struct CallExpression {
     Token token; // The '(' token
     Expression function;
     std::vector<Expression> arguments;
+};
+
+struct ArrayLiteral {
+    Token token; // The '[' token
+    std::vector<Expression> elements;
+};
+
+struct IndexExpression {
+    Token token; // The '[' token
+    Expression left;
+    Expression index;
 };
 
 // Statement types definitions

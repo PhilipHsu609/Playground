@@ -66,6 +66,17 @@ std::string toString(const Expression &expr) {
                                   [](const Expression &a) { return toString(a); }),
                               ", "));
             },
+            [](const Box<ArrayLiteral> &s) {
+                return fmt::format(
+                    "[{}]", fmt::join(std::views::transform(s->elements,
+                                                            [](const Expression &e) {
+                                                                return toString(e);
+                                                            }),
+                                      ", "));
+            },
+            [](const Box<IndexExpression> &s) {
+                return fmt::format("({}[{}])", toString(s->left), toString(s->index));
+            },
         },
         expr);
 }

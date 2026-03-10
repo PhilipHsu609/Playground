@@ -21,6 +21,7 @@ enum class Precedence {
     PRODUCT,     // *
     PREFIX,      // -X or !X
     CALL,        // myFunction(X)
+    INDEX,       // array[index]
 };
 
 class Parser {
@@ -52,11 +53,13 @@ class Parser {
     std::optional<Expression> parseIntegerLiteral();
     std::optional<Expression> parseFunctionLiteral();
     std::optional<Expression> parseStringLiteral();
+    std::optional<Expression> parseArrayLiteral();
     std::optional<Expression> parsePrefixExpression();
     std::optional<Expression> parseInfixExpression(Expression left);
     std::optional<Expression> parseGroupedExpression();
     std::optional<Expression> parseIfExpression();
     std::optional<Expression> parseCallExpression(Expression function);
+    std::optional<Expression> parseIndexExpression(Expression left);
 
     void registerPrefix(TokenType tokenType, PrefixParseFn fn);
     void registerInfix(TokenType tokenType, InfixParseFn fn);

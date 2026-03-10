@@ -27,7 +27,8 @@ constexpr auto PRECEDENCES = []() {
          {TokenType::MINUS, Precedence::SUM},
          {TokenType::SLASH, Precedence::PRODUCT},
          {TokenType::ASTERISK, Precedence::PRODUCT},
-         {TokenType::LPAREN, Precedence::CALL}});
+         {TokenType::LPAREN, Precedence::CALL},
+         {TokenType::LBRACKET, Precedence::INDEX}});
     std::ranges::sort(arr, std::ranges::less{}, &std::pair<TokenType, Precedence>::first);
     return arr;
 }();
@@ -64,6 +65,7 @@ Parser::Parser(Lexer lexer) : lexer_(std::move(lexer)) {
     registerPrefix(TokenType::IF, [this]() { return this->parseIfExpression(); });
     registerPrefix(TokenType::FUNCTION,
                    [this]() { return this->parseFunctionLiteral(); });
+    registerPrefix(TokenType::LBRACKET, [this]() { return this->parseArrayLiteral(); });
 
     // Register infix parse functions
     auto infixParseFn = [this](Expression left) {
@@ -79,6 +81,9 @@ Parser::Parser(Lexer lexer) : lexer_(std::move(lexer)) {
     registerInfix(TokenType::GT, infixParseFn);
     registerInfix(TokenType::LPAREN, [this](Expression left) {
         return this->parseCallExpression(std::move(left));
+    });
+    registerInfix(TokenType::LBRACKET, [this](Expression left) {
+        return this->parseIndexExpression(std::move(left));
     });
 }
 
@@ -328,6 +333,40 @@ std::optional<Expression> Parser::parseStringLiteral() {
     return StringLiteral{.token = currentToken_, .value = currentToken_.literal};
 }
 
+std::optional<Expression> Parser::parseArrayLiteral() {
+    auto array = ArrayLiteral{.token = currentToken_, .elements = {}};
+
+    if (peekToken_.type == TokenType::RBRACKET) {
+        nextToken();
+        return array;
+    }
+
+    // Parse the first element.
+    nextToken();
+    auto element = parseExpression(Precedence::LOWEST);
+    if (!element) {
+        return std::nullopt;
+    }
+    array.elements.emplace_back(std::move(*element));
+
+    // Parse additional elements, if any.
+    while (peekToken_.type == TokenType::COMMA) {
+        nextToken();
+        nextToken();
+        element = parseExpression(Precedence::LOWEST);
+        if (!element) {
+            return std::nullopt;
+        }
+        array.elements.emplace_back(std::move(*element));
+    }
+
+    if (!expectPeek(TokenType::RBRACKET)) {
+        return std::nullopt;
+    }
+
+    return array;
+}
+
 std::optional<Expression> Parser::parseBoolean() {
     return BooleanLiteral{.token = currentToken_,
                           .value = currentToken_.type == TokenType::TRUE};
@@ -449,6 +488,24 @@ std::optional<Expression> Parser::parseCallExpression(Expression function) {
     }
 
     if (!expectPeek(TokenType::RPAREN)) {
+        return std::nullopt;
+    }
+
+    return expr;
+}
+
+std::optional<Expression> Parser::parseIndexExpression(Expression left) {
+    auto expr =
+        IndexExpression{.token = currentToken_, .left = std::move(left), .index = {}};
+
+    nextToken();
+    auto index = parseExpression(Precedence::LOWEST);
+    if (!index) {
+        return std::nullopt;
+    }
+    expr.index = std::move(*index);
+
+    if (!expectPeek(TokenType::RBRACKET)) {
         return std::nullopt;
     }
 

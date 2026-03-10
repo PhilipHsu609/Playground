@@ -94,6 +94,12 @@ Token Lexer::nextToken() {
     case '}':
         token = {TokenType::RBRACE, "}"};
         break;
+    case '[':
+        token = {TokenType::LBRACKET, "["};
+        break;
+    case ']':
+        token = {TokenType::RBRACKET, "]"};
+        break;
     case ',':
         token = {TokenType::COMMA, ","};
         break;
