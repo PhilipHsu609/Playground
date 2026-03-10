@@ -18,6 +18,21 @@ namespace {
 
 using namespace monkey;
 
+const std::unordered_map<std::string, BuiltinFunction> BUILTINS{
+    {"len",
+     [](const std::vector<Object> &args) -> Object {
+         if (args.size() != 1) {
+             return Error{
+                 fmt::format("wrong number of arguments. got={}, want=1", args.size())};
+         }
+         if (std::holds_alternative<String>(args[0])) {
+             return static_cast<int64_t>(std::get<String>(args[0]).value.size());
+         }
+         return Error{
+             fmt::format("argument to `len` not supported, got {}", inspect(args[0]))};
+     }},
+};
+
 bool isTrue(const Object &obj) {
     if (std::holds_alternative<bool>(obj)) {
         return std::get<bool>(obj);
@@ -202,11 +217,18 @@ Object evalIfExpression(const IfExpression &expr,
 }
 
 Object evalIdentifier(const Identifier &expr, const std::shared_ptr<Environment> &env) {
-    auto value = env->get(tokenLiteral(expr));
+    auto literal = tokenLiteral(expr);
+    auto value = env->get(literal);
+
     if (value.has_value()) {
         return *value;
     }
-    return Error{fmt::format("identifier not found: {}", tokenLiteral(expr))};
+
+    if (BUILTINS.contains(literal)) {
+        return Builtin{BUILTINS.at(literal)};
+    }
+
+    return Error{fmt::format("identifier not found: {}", literal)};
 }
 
 Object evalCallExpression(const CallExpression &expr,
@@ -221,6 +243,11 @@ Object evalCallExpression(const CallExpression &expr,
     auto args = evalExpressions(expr.arguments, env);
     if (!args.empty() && std::holds_alternative<Error>(args[0])) {
         return args[0];
+    }
+
+    if (std::holds_alternative<Box<Builtin>>(function)) {
+        auto builtin = std::get<Box<Builtin>>(function);
+        return builtin->fn(args);
     }
 
     if (!std::holds_alternative<Box<Function>>(function)) {

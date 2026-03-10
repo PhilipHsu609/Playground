@@ -28,6 +28,7 @@ std::string inspect(const Object &obj) {
                               ", "),
                     toString(fn->body));
             },
+            [](const Box<Builtin> &) -> std::string { return "builtin function"; },
             [](const Error &err) -> std::string { return "ERROR: " + err.message; }},
         obj);
 }

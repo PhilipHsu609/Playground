@@ -188,3 +188,23 @@ TEST(EvalTest, StringConcatenation) {
     ASSERT_TRUE(std::holds_alternative<String>(evaluated));
     ASSERT_EQ(std::get<String>(evaluated).value, "Hello, world!");
 }
+
+TEST(EvalTest, BuiltinFunctions) {
+    std::vector<std::pair<std::string, Object>> tests = {
+        {R"(len(""))", 0},
+        {R"(len("four"))", 4},
+        {R"(len("hello world"))", 11},
+        {R"(len(1))", Error{"argument to `len` not supported, got 1"}},
+        {R"(len("one", "two"))", Error{"wrong number of arguments. got=2, want=1"}}};
+
+    for (const auto &[input, expected] : tests) {
+        Object evaluated = testEval(input);
+        if (std::holds_alternative<int64_t>(expected)) {
+            testIntegerObject(evaluated, std::get<int64_t>(expected));
+        } else {
+            ASSERT_TRUE(std::holds_alternative<Error>(evaluated));
+            ASSERT_EQ(std::get<Error>(evaluated).message,
+                      std::get<Error>(expected).message);
+        }
+    }
+}
