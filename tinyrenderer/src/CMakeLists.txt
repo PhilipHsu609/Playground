@@ -1,6 +1,9 @@
-add_executable(
-    main
-    main.cpp
+# Renderer library (all components except main)
+add_library(tinyrenderer_lib STATIC)
+
+target_sources(
+    tinyrenderer_lib
+    PRIVATE
     TGAImage.cpp
     Drawer.cpp
     Vector.cpp
@@ -8,14 +11,23 @@ add_executable(
 )
 
 target_include_directories(
-    main
-    PRIVATE
+    tinyrenderer_lib
+    PUBLIC
     ${PROJECT_SOURCE_DIR}/include
 )
 
 target_link_libraries(
-    main
-    PRIVATE
-    compile_flags_interface
+    tinyrenderer_lib
+    PUBLIC
+    project_compile_flags
     fmt::fmt
+)
+
+# Main executable
+add_executable(tinyrenderer main.cpp)
+
+target_link_libraries(
+    tinyrenderer
+    PRIVATE
+    tinyrenderer_lib
 )

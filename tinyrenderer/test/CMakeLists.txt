@@ -1,21 +1,18 @@
-set(TEST_TARGET mytest)
+# Test executable
+set(TEST_TARGET tinyrenderer_test)
 
-add_executable(
-    ${TEST_TARGET}
-    VectorTest.cpp
-    ${PROJECT_SOURCE_DIR}/src/Vector.cpp
-)
+add_executable(${TEST_TARGET})
 
-target_include_directories(
+target_sources(
     ${TEST_TARGET}
     PRIVATE
-    ${PROJECT_SOURCE_DIR}/include
+    VectorTest.cpp
 )
 
 target_link_libraries(
     ${TEST_TARGET}
     PRIVATE
-    fmt::fmt
+    tinyrenderer_lib
     GTest::gtest_main
 )
 

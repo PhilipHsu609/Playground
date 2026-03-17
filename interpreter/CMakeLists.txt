@@ -26,14 +26,14 @@ include(FetchContent)
 FetchContent_Declare(
     fmt
     GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-    GIT_TAG 11.1.4
+    GIT_TAG 12.1.0
     SYSTEM
 )
 
 FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG v1.15.2
+    GIT_TAG v1.17.0
     SYSTEM
 )
 

@@ -1,42 +1,47 @@
 cmake_minimum_required(VERSION 3.15)
 
-set(CMAKE_TOOLCHAIN_FILE $ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake CACHE STRING "Vcpkg toolchain file")
+# Include CMake utilities
+include(cmake/debug.cmake)
+include(cmake/CompileFlags.cmake)
 
+# Project definition
 project(
     tinyrenderer
     VERSION 1.0
+    DESCRIPTION "Software renderer following ssloy/tinyrenderer"
     LANGUAGES CXX
 )
 
+# C++ standard
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED on)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-# vcpkg dependencies
-find_package(fmt CONFIG REQUIRED)
-find_package(GTest CONFIG REQUIRED)
+# Export compile commands for clangd, clang-tidy, etc.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Define an interface library
-add_library(compile_flags_interface INTERFACE)
+# Dependencies (via FetchContent)
+include(FetchContent)
 
-# Set compiler flags for the interface library
-target_compile_options(compile_flags_interface INTERFACE
-    -Wall
-    -Wextra
-    -Wshadow
-    -Wnon-virtual-dtor
-    -Wold-style-cast
-    -Wcast-align
-    -Woverloaded-virtual
-    -Wconversion
-    -Wsign-conversion
-    -Wmisleading-indentation
-    -Wnull-dereference
-    -pedantic
-    $<$<CONFIG:DEBUG>:-g>
-    $<$<CONFIG:RELEASE>:-O3>
+FetchContent_Declare(
+    fmt
+    GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+    GIT_TAG 12.1.0
+    SYSTEM
 )
 
+FetchContent_Declare(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_TAG v1.17.0
+    SYSTEM
+)
+
+FetchContent_MakeAvailable(fmt googletest)
+
+# Add source directory
 add_subdirectory(src)
 
+# Enable testing and add test directory
 enable_testing()
 add_subdirectory(test)

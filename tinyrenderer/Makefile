@@ -1,20 +1,24 @@
 BUILD_TYPE ?= Debug
+BUILD_DIR = build
 
-CMAKE_FLAGS=-DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=${BUILD_TYPE}
-CMAKE_COMPILER_FLAGS=-DCMAKE_CXX_COMPILER:STRING=clang++ -DCMAKE_C_COMPILER:STRING=clang
+CMAKE_FLAGS = -DCMAKE_EXPORT_COMPILE_COMMANDS=TRUE -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
+              -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang
 
-.PHONY: all config build clean test
+.PHONY: all config format build test clean
 
-all: config build
+all: format build test
+
+format:
+	find include src test -name '*.h' -o -name '*.hpp' -o -name '*.cpp' | xargs clang-format -i
 
 config:
-	cmake ${CMAKE_FLAGS} ${CMAKE_COMPILER_FLAGS} -S . -B build
+	cmake $(CMAKE_FLAGS) -S . -B $(BUILD_DIR)
 
 build:
-	cmake --build build
+	cmake --build $(BUILD_DIR) --parallel
 
 test:
-	cd build/test && ctest
+	cd $(BUILD_DIR)/test && ctest --output-on-failure
 
 clean:
-	rm -rf build
+	cmake --build $(BUILD_DIR) --target clean

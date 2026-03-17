@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <type_traits>
 #include <vector>
