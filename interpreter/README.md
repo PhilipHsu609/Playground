@@ -6,8 +6,8 @@ A C++23 implementation of the Monkey programming language from Thorsten Ball's [
 
 - [x] Chapter 1: Lexing — tokenizer, keywords, two-character tokens, REPL
 - [x] Chapter 2: Parsing — AST, Pratt parser, operator precedence, REPL integration
-- [ ] Chapter 3: Evaluation — tree-walking interpreter
-- [ ] Chapter 4: Extensions — strings, arrays, hash maps, built-in functions
+- [x] Chapter 3: Evaluation — tree-walking interpreter, closures, error handling
+- [~] Chapter 4: Extensions — strings, arrays, built-in functions (hash maps skipped)
 
 ## Building
 
