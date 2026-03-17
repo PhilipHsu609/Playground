@@ -19,16 +19,20 @@ TEST(Vector, Operators) {
     v3 = v1 * 2.0f;
     EXPECT_TRUE(v3 == Vec3f(2.0f, 4.0f, 6.0f));
 
+    // Test commutative scalar multiplication
+    v3 = 2.0f * v1;
+    EXPECT_TRUE(v3 == Vec3f(2.0f, 4.0f, 6.0f));
+
     // Test scalar division
     v3 = v1 / 2.0f;
     EXPECT_TRUE(v3 == Vec3f(0.5f, 1.0f, 1.5f));
 
     // Test dot product
-    float dot = v1 * v2;
-    EXPECT_EQ(dot, 32.0f);
+    float d = dot(v1, v2);
+    EXPECT_EQ(d, 32.0f);
 
     // Test cross product
-    v3 = v1 ^ v2;
+    v3 = cross(v1, v2);
     EXPECT_TRUE(v3 == Vec3f(-3.0f, 6.0f, -3.0f));
 
     // Test normalization

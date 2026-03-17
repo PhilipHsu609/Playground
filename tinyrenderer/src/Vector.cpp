@@ -1,1 +1,0 @@
-#include "tinyrenderer/Vector.hpp"

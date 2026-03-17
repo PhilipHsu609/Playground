@@ -11,8 +11,7 @@ Model::Model(const char *filename) {
     }
 
     std::string line;
-    while (!file.eof()) {
-        std::getline(file, line);
+    while (std::getline(file, line)) {
         std::istringstream ss(line);
         char c{};
 

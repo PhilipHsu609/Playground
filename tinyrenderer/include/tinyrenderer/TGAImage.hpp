@@ -32,18 +32,18 @@ struct TGAColor {
         : b(b), g(g), r(r), a(255), bytespp(3) {}
     constexpr TGAColor(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a)
         : b(b), g(g), r(r), a(a), bytespp(4) {}
-    constexpr TGAColor(std::uint32_t rgba, std::uint8_t bytespp) : bytespp(bytespp) {
-        this->operator()(rgba);
+    constexpr TGAColor(std::uint32_t argb, std::uint8_t bytespp) : bytespp(bytespp) {
+        fromArgb(argb);
     }
 
-    void operator()(std::uint32_t rgba) {
-        r = (rgba >> 24) & 0xff;
-        g = (rgba >> 16) & 0xff;
-        b = (rgba >> 8) & 0xff;
-        a = rgba & 0xff;
+    constexpr void fromArgb(std::uint32_t argb) {
+        a = (argb >> 24) & 0xff;
+        r = (argb >> 16) & 0xff;
+        g = (argb >> 8) & 0xff;
+        b = argb & 0xff;
     }
 
-    std::uint32_t operator()() const {
+    [[nodiscard]] constexpr std::uint32_t toArgb() const {
         return static_cast<uint32_t>((a << 24) | (r << 16) | (g << 8) | b);
     }
 };
@@ -64,8 +64,8 @@ class TGAImage {
             throw std::out_of_range("Coordinates out of bounds");
         }
         const size_t index = static_cast<size_t>(x) + static_cast<size_t>(y) * width_;
-        std::uint32_t bgra = color();
-        std::memcpy(&data_[index * bytespp_], &bgra, bytespp_);
+        std::uint32_t argb = color.toArgb();
+        std::memcpy(&data_[index * bytespp_], &argb, bytespp_);
     }
 
     template <std::integral T>

@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <cmath>
 #include <concepts>
 #include <cstddef>
@@ -12,34 +11,34 @@ class Vec {
     std::array<T, N> data_{};
 
   public:
-    Vec() = default;
+    constexpr Vec() = default;
 
     template <typename... Args>
-    explicit Vec(Args... args) : data_{{args...}} {
+    constexpr explicit Vec(Args... args) : data_{{args...}} {
         static_assert(sizeof...(args) == N,
                       "Number of arguments must match the dimension of the vector");
     }
 
     template <typename U, size_t M>
-    explicit Vec(const Vec<U, M> &v) {
+    constexpr explicit Vec(const Vec<U, M> &v) {
         for (size_t i = 0; i < std::min(M, N); ++i) {
             data_[i] = static_cast<T>(v[i]);
         }
     }
 
-    void clear() { data_.fill(T(0)); }
+    constexpr void clear() { data_.fill(T(0)); }
 
     template <std::integral U>
-    T &operator[](U i) {
+    constexpr T &operator[](U i) {
         return data_[static_cast<size_t>(i)];
     }
 
     template <std::integral U>
-    const T &operator[](U i) const {
+    constexpr const T &operator[](U i) const {
         return data_[static_cast<size_t>(i)];
     }
 
-    Vec operator+(const Vec &v) const {
+    constexpr Vec operator+(const Vec &v) const {
         Vec result;
         for (size_t i = 0; i < N; ++i) {
             result[i] = data_[i] + v[i];
@@ -47,7 +46,7 @@ class Vec {
         return result;
     }
 
-    Vec operator-(const Vec &v) const {
+    constexpr Vec operator-(const Vec &v) const {
         Vec result;
         for (size_t i = 0; i < N; ++i) {
             result[i] = data_[i] - v[i];
@@ -55,7 +54,7 @@ class Vec {
         return result;
     }
 
-    Vec operator*(T s) const {
+    constexpr Vec operator*(T s) const {
         Vec result;
         for (size_t i = 0; i < N; ++i) {
             result[i] = data_[i] * s;
@@ -63,7 +62,9 @@ class Vec {
         return result;
     }
 
-    Vec operator/(T s) const {
+    friend constexpr Vec operator*(T s, const Vec &v) { return v * s; }
+
+    constexpr Vec operator/(T s) const {
         Vec result;
         for (size_t i = 0; i < N; ++i) {
             result[i] = data_[i] / s;
@@ -71,14 +72,7 @@ class Vec {
         return result;
     }
 
-    bool operator==(const Vec &v) const {
-        for (size_t i = 0; i < N; ++i) {
-            if (data_[i] != v[i]) {
-                return false;
-            }
-        }
-        return true;
-    }
+    constexpr bool operator==(const Vec &) const = default;
 
     [[nodiscard]] double norm() const {
         double sum = 0;
@@ -88,7 +82,9 @@ class Vec {
         return std::sqrt(sum);
     }
 
-    [[nodiscard]] Vec normalize() const {
+    [[nodiscard]] Vec normalize() const
+        requires std::floating_point<T>
+    {
         const double n = norm();
         Vec result;
         for (size_t i = 0; i < N; ++i) {
@@ -99,51 +95,49 @@ class Vec {
 
     [[nodiscard]] double length() const { return norm(); }
 
-    Vec &operator+=(const Vec &v) {
+    constexpr Vec &operator+=(const Vec &v) {
         for (size_t i = 0; i < N; ++i) {
             data_[i] += v[i];
         }
         return *this;
     }
 
-    Vec &operator-=(const Vec &v) {
+    constexpr Vec &operator-=(const Vec &v) {
         for (size_t i = 0; i < N; ++i) {
             data_[i] -= v[i];
         }
         return *this;
     }
 
-    Vec &operator*=(T s) {
+    constexpr Vec &operator*=(T s) {
         for (size_t i = 0; i < N; ++i) {
             data_[i] *= s;
         }
         return *this;
     }
 
-    Vec &operator/=(T s) {
+    constexpr Vec &operator/=(T s) {
         for (size_t i = 0; i < N; ++i) {
             data_[i] /= s;
         }
         return *this;
     }
-
-    // Dot product
-    T operator*(const Vec &v) const {
-        T result = 0;
-        for (size_t i = 0; i < N; ++i) {
-            result += data_[i] * v[i];
-        }
-        return result;
-    }
-
-    // Vec3 cross product
-    Vec operator^(const Vec &v) const
-        requires(N == 3)
-    {
-        return Vec(data_[1] * v[2] - data_[2] * v[1], data_[2] * v[0] - data_[0] * v[2],
-                   data_[0] * v[1] - data_[1] * v[0]);
-    }
 };
+
+template <typename T, size_t N>
+constexpr T dot(const Vec<T, N> &a, const Vec<T, N> &b) {
+    T result = 0;
+    for (size_t i = 0; i < N; ++i) {
+        result += a[i] * b[i];
+    }
+    return result;
+}
+
+template <typename T>
+constexpr Vec<T, 3> cross(const Vec<T, 3> &a, const Vec<T, 3> &b) {
+    return Vec<T, 3>(a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2],
+                     a[0] * b[1] - a[1] * b[0]);
+}
 
 using Vec4f = Vec<float, 4>;
 using Vec3f = Vec<float, 3>;

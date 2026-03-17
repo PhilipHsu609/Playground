@@ -6,7 +6,6 @@ target_sources(
     PRIVATE
     TGAImage.cpp
     Drawer.cpp
-    Vector.cpp
     Model.cpp
 )
 

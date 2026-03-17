@@ -2,14 +2,12 @@
 #include "tinyrenderer/TGAImage.hpp"
 #include "tinyrenderer/Vector.hpp"
 
+#include <algorithm>
 #include <array>
-#include <cmath>
 #include <limits>
-#include <utility>
 #include <vector>
 
 namespace {
-// Returns bounding box [min_x, max_x, min_y, max_y] for a set of points
 template <size_t N>
 Vec4i findBbox(const std::array<Vec2i, N> &pts) {
     Vec4i bbox(std::numeric_limits<int>::max(), std::numeric_limits<int>::min(),
@@ -25,34 +23,19 @@ Vec4i findBbox(const std::array<Vec2i, N> &pts) {
     return bbox;
 }
 
-// Returns true if point p is inside triangle t0, t1, t2
-bool isInside(Vec2f p, Vec2i t0, Vec2i t1, Vec2i t2) {
-    const float a = (Vec3f(t1 - t0) ^ Vec3f(p - Vec2f(t0)))[2];
-    const float b = (Vec3f(t2 - t1) ^ Vec3f(p - Vec2f(t1)))[2];
-    const float c = (Vec3f(t0 - t2) ^ Vec3f(p - Vec2f(t2)))[2];
-    return (a >= 0 && b >= 0 && c >= 0) || (a <= 0 && b <= 0 && c <= 0);
-}
-
-// Returns barycentric coordinates of point p in triangle t0, t1, t2
 Vec3f barycentric(Vec2f p, Vec2f t0, Vec2f t1, Vec2f t2) {
-    auto v01 = t1 - t0;
-    auto v02 = t2 - t0;
-    auto v0p = p - t0;
+    const auto v01 = t1 - t0;
+    const auto v02 = t2 - t0;
+    const auto v0p = p - t0;
 
     const Vec2f nac(t0[1] - t2[1], -t0[0] + t2[0]);
     const Vec2f nab(t0[1] - t1[1], -t0[0] + t1[0]);
 
-    const float beta = (v0p * nac) / (v01 * nac);
-    const float gamma = (v0p * nab) / (v02 * nab);
+    const float beta = dot(v0p, nac) / dot(v01, nac);
+    const float gamma = dot(v0p, nab) / dot(v02, nab);
     const float alpha = 1.f - beta - gamma;
 
     return Vec3f(alpha, beta, gamma);
-}
-
-// Returns z-coordinate of point p in triangle t0, t1, t2
-float zInterpolate(Vec2f p, Vec3f t0, Vec3f t1, Vec3f t2) {
-    Vec3f bary = barycentric(p, Vec2f(t0), Vec2f(t1), Vec2f(t2));
-    return bary[0] * t0[2] + bary[1] * t1[2] + bary[2] * t2[2];
 }
 } // namespace
 
@@ -102,19 +85,27 @@ void triangle(const std::array<Vec3f, 3> &pts, std::vector<float> &zbuffer,
 
     const auto bbox = findBbox(std::array{t0, t1, t2});
 
-    for (int x = bbox[0]; x <= bbox[1]; x++) {
-        for (int y = bbox[2]; y <= bbox[3]; y++) {
+    const int minX = std::max(bbox[0], 0);
+    const int maxX = std::min(bbox[1], static_cast<int>(image.getWidth()) - 1);
+    const int minY = std::max(bbox[2], 0);
+    const int maxY = std::min(bbox[3], static_cast<int>(image.getHeight()) - 1);
+
+    for (int x = minX; x <= maxX; x++) {
+        for (int y = minY; y <= maxY; y++) {
             const Vec2f p(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
+            const Vec3f bary = barycentric(p, Vec2f(t0), Vec2f(t1), Vec2f(t2));
 
-            if (isInside(p, t0, t1, t2)) {
-                const float z = zInterpolate(p, pts[0], pts[1], pts[2]);
+            if (bary[0] < 0 || bary[1] < 0 || bary[2] < 0) {
+                continue;
+            }
 
-                auto index =
-                    static_cast<size_t>(y) * image.getWidth() + static_cast<size_t>(x);
-                if (zbuffer[index] < z) {
-                    zbuffer[index] = z;
-                    image.set(x, y, color);
-                }
+            const float z =
+                bary[0] * pts[0][2] + bary[1] * pts[1][2] + bary[2] * pts[2][2];
+            const auto index =
+                static_cast<size_t>(y) * image.getWidth() + static_cast<size_t>(x);
+            if (zbuffer[index] < z) {
+                zbuffer[index] = z;
+                image.set(x, y, color);
             }
         }
     }

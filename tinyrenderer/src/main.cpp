@@ -6,7 +6,7 @@
 #include <fmt/core.h>
 
 #include <array>
-#include <cassert>
+#include <limits>
 #include <vector>
 
 int main() {
@@ -14,7 +14,7 @@ int main() {
     constexpr size_t height = 800;
 
     TGAImage image(width, height, TGAImage::RGB);
-    std::vector<float> zbuffer(width * height, std::numeric_limits<float>::min());
+    std::vector<float> zbuffer(width * height, std::numeric_limits<float>::lowest());
 
     const Model model("obj/african_head/african_head.obj");
 
@@ -24,7 +24,7 @@ int main() {
     const Vec3f lightDir(0.f, 0.f, -1.f);
 
     for (size_t i = 0; i < model.nfaces(); i++) {
-        const std::vector<size_t> face = model.face(i);
+        const auto &face = model.face(i);
 
         std::array<Vec3f, 3> screenCoords;
         std::array<Vec3f, 3> worldCoords;
@@ -36,9 +36,9 @@ int main() {
             worldCoords[j] = v;
         }
 
-        Vec3f n = (worldCoords[2] - worldCoords[0]) ^ (worldCoords[1] - worldCoords[0]);
+        Vec3f n = cross(worldCoords[2] - worldCoords[0], worldCoords[1] - worldCoords[0]);
         n = n.normalize();
-        const float intensity = n * lightDir;
+        const float intensity = dot(n, lightDir);
         if (intensity > 0) {
             const TGAColor color(static_cast<std::uint8_t>(intensity * 255),
                                  static_cast<std::uint8_t>(intensity * 255),
