@@ -4,45 +4,45 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <concepts>
 #include <cstddef>
-#include <type_traits>
 
 template <typename T, size_t N>
 class Vec {
-    std::array<T, N> data;
+    std::array<T, N> data_{};
 
   public:
-    Vec() { data.fill(T(0)); }
+    Vec() = default;
 
     template <typename... Args>
-    Vec(Args... args) : data{{args...}} {
+    explicit Vec(Args... args) : data_{{args...}} {
         static_assert(sizeof...(args) == N,
                       "Number of arguments must match the dimension of the vector");
     }
 
     template <typename U, size_t M>
-    Vec(const Vec<U, M> &v) {
+    explicit Vec(const Vec<U, M> &v) {
         for (size_t i = 0; i < std::min(M, N); ++i) {
-            data[i] = static_cast<T>(v[i]);
+            data_[i] = static_cast<T>(v[i]);
         }
     }
 
-    void clear() { data.fill(T(0)); }
+    void clear() { data_.fill(T(0)); }
 
-    template <typename U, typename = std::enable_if_t<std::is_integral_v<U>>>
+    template <std::integral U>
     T &operator[](U i) {
-        return data[static_cast<size_t>(i)];
+        return data_[static_cast<size_t>(i)];
     }
 
-    template <typename U, typename = std::enable_if_t<std::is_integral_v<U>>>
+    template <std::integral U>
     const T &operator[](U i) const {
-        return data[static_cast<size_t>(i)];
+        return data_[static_cast<size_t>(i)];
     }
 
     Vec operator+(const Vec &v) const {
         Vec result;
         for (size_t i = 0; i < N; ++i) {
-            result[i] = data[i] + v[i];
+            result[i] = data_[i] + v[i];
         }
         return result;
     }
@@ -50,7 +50,7 @@ class Vec {
     Vec operator-(const Vec &v) const {
         Vec result;
         for (size_t i = 0; i < N; ++i) {
-            result[i] = data[i] - v[i];
+            result[i] = data_[i] - v[i];
         }
         return result;
     }
@@ -58,7 +58,7 @@ class Vec {
     Vec operator*(T s) const {
         Vec result;
         for (size_t i = 0; i < N; ++i) {
-            result[i] = data[i] * s;
+            result[i] = data_[i] * s;
         }
         return result;
     }
@@ -66,63 +66,63 @@ class Vec {
     Vec operator/(T s) const {
         Vec result;
         for (size_t i = 0; i < N; ++i) {
-            result[i] = data[i] / s;
+            result[i] = data_[i] / s;
         }
         return result;
     }
 
     bool operator==(const Vec &v) const {
         for (size_t i = 0; i < N; ++i) {
-            if (data[i] != v[i]) {
+            if (data_[i] != v[i]) {
                 return false;
             }
         }
         return true;
     }
 
-    double norm() const {
+    [[nodiscard]] double norm() const {
         double sum = 0;
         for (size_t i = 0; i < N; ++i) {
-            sum += data[i] * data[i];
+            sum += data_[i] * data_[i];
         }
         return std::sqrt(sum);
     }
 
-    Vec<double, N> normalize() const {
-        double n = norm();
-        Vec<double, N> result;
+    [[nodiscard]] Vec normalize() const {
+        const double n = norm();
+        Vec result;
         for (size_t i = 0; i < N; ++i) {
-            result[i] = data[i] / n;
+            result[i] = static_cast<T>(data_[i] / n);
         }
         return result;
     }
 
-    double length() const { return norm(); }
+    [[nodiscard]] double length() const { return norm(); }
 
     Vec &operator+=(const Vec &v) {
         for (size_t i = 0; i < N; ++i) {
-            data[i] += v[i];
+            data_[i] += v[i];
         }
         return *this;
     }
 
     Vec &operator-=(const Vec &v) {
         for (size_t i = 0; i < N; ++i) {
-            data[i] -= v[i];
+            data_[i] -= v[i];
         }
         return *this;
     }
 
     Vec &operator*=(T s) {
         for (size_t i = 0; i < N; ++i) {
-            data[i] *= s;
+            data_[i] *= s;
         }
         return *this;
     }
 
     Vec &operator/=(T s) {
         for (size_t i = 0; i < N; ++i) {
-            data[i] /= s;
+            data_[i] /= s;
         }
         return *this;
     }
@@ -131,16 +131,17 @@ class Vec {
     T operator*(const Vec &v) const {
         T result = 0;
         for (size_t i = 0; i < N; ++i) {
-            result += data[i] * v[i];
+            result += data_[i] * v[i];
         }
         return result;
     }
 
     // Vec3 cross product
-    template <typename U = T>
-    typename std::enable_if_t<N == 3, Vec<U, 3>> operator^(const Vec &v) const {
-        return Vec(data[1] * v[2] - data[2] * v[1], data[2] * v[0] - data[0] * v[2],
-                   data[0] * v[1] - data[1] * v[0]);
+    Vec operator^(const Vec &v) const
+        requires(N == 3)
+    {
+        return Vec(data_[1] * v[2] - data_[2] * v[1], data_[2] * v[0] - data_[0] * v[2],
+                   data_[0] * v[1] - data_[1] * v[0]);
     }
 };
 

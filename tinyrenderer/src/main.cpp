@@ -16,35 +16,34 @@ int main() {
     TGAImage image(width, height, TGAImage::RGB);
     std::vector<float> zbuffer(width * height, std::numeric_limits<float>::min());
 
-    Model model("obj/african_head/african_head.obj");
+    const Model model("obj/african_head/african_head.obj");
 
     fmt::print("nverts: {}\n", model.nverts());
     fmt::print("nfaces: {}\n", model.nfaces());
 
-    Vec3f light_dir(0.f, 0.f, -1.f);
+    const Vec3f lightDir(0.f, 0.f, -1.f);
 
     for (size_t i = 0; i < model.nfaces(); i++) {
-        std::vector<size_t> face = model.face(i);
+        const std::vector<size_t> face = model.face(i);
 
-        std::array<Vec3f, 3> screen_coords;
-        std::array<Vec3f, 3> world_coords;
+        std::array<Vec3f, 3> screenCoords;
+        std::array<Vec3f, 3> worldCoords;
 
         for (size_t j = 0; j < 3; j++) {
             Vec3f v = model.vert(face[j]);
-            screen_coords[j] =
+            screenCoords[j] =
                 Vec3f((v[0] + 1.f) * width / 2.f, (v[1] + 1.f) * height / 2.f, v[2]);
-            world_coords[j] = v;
+            worldCoords[j] = v;
         }
 
-        Vec3f n =
-            (world_coords[2] - world_coords[0]) ^ (world_coords[1] - world_coords[0]);
+        Vec3f n = (worldCoords[2] - worldCoords[0]) ^ (worldCoords[1] - worldCoords[0]);
         n = n.normalize();
-        float intensity = n * light_dir;
+        const float intensity = n * lightDir;
         if (intensity > 0) {
-            TGAColor color(static_cast<std::uint8_t>(intensity * 255),
-                           static_cast<std::uint8_t>(intensity * 255),
-                           static_cast<std::uint8_t>(intensity * 255));
-            triangle(screen_coords, zbuffer, image, color);
+            const TGAColor color(static_cast<std::uint8_t>(intensity * 255),
+                                 static_cast<std::uint8_t>(intensity * 255),
+                                 static_cast<std::uint8_t>(intensity * 255));
+            triangle(screenCoords, zbuffer, image, color);
         }
     }
 

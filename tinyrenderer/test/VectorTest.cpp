@@ -32,7 +32,7 @@ TEST(Vector, Operators) {
     EXPECT_TRUE(v3 == Vec3f(-3.0f, 6.0f, -3.0f));
 
     // Test normalization
-    Vec3d v4 = v1.normalize();
+    Vec3f v4 = v1.normalize();
     float norm = std::sqrt(1.0f + 4.0f + 9.0f);
     EXPECT_NEAR(v4[0], 1.0f / norm, 1e-6);
     EXPECT_NEAR(v4[1], 2.0f / norm, 1e-6);

@@ -8,28 +8,28 @@
 #include <stdexcept>
 #include <vector>
 
-TGAImage::TGAImage(const char *filename) { load_tga_data(filename); }
+TGAImage::TGAImage(const char *filename) { loadTgaData(filename); }
 
 TGAImage::TGAImage(std::uint16_t width, std::uint16_t height, std::uint8_t bytespp)
-    : width(width), height(height), bytespp(bytespp),
-      data(static_cast<size_t>(width) * height * bytespp) {}
+    : width_(width), height_(height), bytespp_(bytespp),
+      data_(static_cast<size_t>(width) * height * bytespp) {}
 
-void TGAImage::save(const char *filename) const { write_tga_data(filename); }
+void TGAImage::save(const char *filename) const { writeTgaData(filename); }
 
 void TGAImage::flipVertically() {
-    if (data.empty()) {
+    if (data_.empty()) {
         return;
     }
 
-    const size_t half = height >> 1;
-    const size_t stride = static_cast<size_t>(width) * bytespp;
+    const size_t half = height_ >> 1;
+    const size_t stride = static_cast<size_t>(width_) * bytespp_;
     std::vector<std::uint8_t> buffer(stride);
 
-    std::uint8_t *start = data.data();
+    std::uint8_t *start = data_.data();
 
     for (size_t i = 0; i < half; ++i) {
         std::uint8_t *line1 = &start[i * stride];
-        std::uint8_t *line2 = &start[(height - 1 - i) * stride];
+        std::uint8_t *line2 = &start[(height_ - 1 - i) * stride];
         std::copy(line1, line1 + stride, buffer.data());
         std::copy(line2, line2 + stride, line1);
         std::copy(buffer.begin(), buffer.end(), line2);
@@ -37,25 +37,26 @@ void TGAImage::flipVertically() {
 }
 
 void TGAImage::flipHorizontally() {
-    if (data.empty()) {
+    if (data_.empty()) {
         return;
     }
 
-    const size_t stride = static_cast<size_t>(width) * bytespp;
-    std::uint8_t *start = data.data();
+    const size_t stride = static_cast<size_t>(width_) * bytespp_;
+    std::uint8_t *start = data_.data();
 
-    for (size_t i = 0; i < height; ++i) {
-        for (size_t j = 0; j < width / 2; ++j) {
-            size_t index1 = i * stride + j * bytespp;
-            size_t index2 = i * stride + (width - 1 - j) * bytespp;
-            for (size_t k = 0; k < bytespp; ++k) {
+    for (size_t i = 0; i < height_; ++i) {
+        for (size_t j = 0; j < width_ / 2; ++j) {
+            const size_t index1 = i * stride + j * bytespp_;
+            const size_t index2 = i * stride + (width_ - 1 - j) * bytespp_;
+            for (size_t k = 0; k < bytespp_; ++k) {
                 std::swap(start[index1 + k], start[index2 + k]);
             }
         }
     }
 }
 
-void TGAImage::load_tga_data(const char *filename) {
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+void TGAImage::loadTgaData(const char *filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error(fmt::format("Failed to open file: {}", filename));
@@ -64,27 +65,27 @@ void TGAImage::load_tga_data(const char *filename) {
     TGAHeader header{};
     file.read(reinterpret_cast<char *>(&header), sizeof(TGAHeader));
 
-    width = header.width;
-    height = header.height;
-    bytespp = header.pixelDepth >> 3;
+    width_ = header.width;
+    height_ = header.height;
+    bytespp_ = header.pixelDepth >> 3;
 
-    if (width <= 0 || height <= 0 ||
-        (bytespp != Format::GRAYSCALE && bytespp != Format::RGB &&
-         bytespp != Format::RGBA)) {
+    if (width_ <= 0 || height_ <= 0 ||
+        (bytespp_ != Format::GRAYSCALE && bytespp_ != Format::RGB &&
+         bytespp_ != Format::RGBA)) {
         throw std::runtime_error(fmt::format("Invalid TGA file: {}", filename));
     }
 
-    data.resize(static_cast<size_t>(width) * height * bytespp);
+    data_.resize(static_cast<size_t>(width_) * height_ * bytespp_);
 
     if (header.imageType == 2 || header.imageType == 3) {
-        file.read(reinterpret_cast<char *>(data.data()),
-                  static_cast<std::streamsize>(width) * height * bytespp);
+        file.read(reinterpret_cast<char *>(data_.data()),
+                  static_cast<std::streamsize>(width_) * height_ * bytespp_);
         if (!file.good()) {
             throw std::runtime_error(
                 fmt::format("An error occurred while reading the file: {}", filename));
         }
     } else if (header.imageType == 10 || header.imageType == 11) {
-        load_rle_data(file);
+        loadRleData(file);
     } else {
         throw std::runtime_error(fmt::format("Unsupported TGA file type: {}", filename));
     }
@@ -96,37 +97,41 @@ void TGAImage::load_tga_data(const char *filename) {
         flipHorizontally();
     }
 
-    fmt::print("Loaded TGA image: {} ({}x{}x{})\n", filename, width, height, bytespp * 8);
+    fmt::print("Loaded TGA image: {} ({}x{}x{})\n", filename, width_, height_,
+               bytespp_ * 8);
 }
 
-void TGAImage::write_tga_data(const char *filename, bool rle) const {
+void TGAImage::writeTgaData(const char *filename, bool rle) const {
     std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error(fmt::format("Failed to open file: {}", filename));
     }
 
     TGAHeader header{};
-    header.imageType = (rle ? (bytespp == Format::GRAYSCALE ? 11 : 10)
-                            : (bytespp == Format::GRAYSCALE ? 3 : 2));
-    header.width = width;
-    header.height = height;
-    header.pixelDepth = bytespp * 8;
+    if (bytespp_ == Format::GRAYSCALE) {
+        header.imageType = rle ? 11 : 3;
+    } else {
+        header.imageType = rle ? 10 : 2;
+    }
+    header.width = width_;
+    header.height = height_;
+    header.pixelDepth = bytespp_ * 8;
     header.imageDescriptor = (1 << 5);
 
     file.write(reinterpret_cast<const char *>(&header), sizeof(TGAHeader));
 
     if (rle) {
-        write_rle_data(file);
+        writeRleData(file);
     } else {
-        file.write(reinterpret_cast<const char *>(data.data()),
-                   static_cast<std::streamsize>(data.size()));
+        file.write(reinterpret_cast<const char *>(data_.data()),
+                   static_cast<std::streamsize>(data_.size()));
     }
 }
 
-void TGAImage::load_rle_data(std::ifstream &file) {
-    const size_t pixelCount = static_cast<size_t>(width) * height;
+void TGAImage::loadRleData(std::ifstream &file) {
+    const size_t pixelCount = static_cast<size_t>(width_) * height_;
     size_t currentPixel = 0;
-    std::uint8_t *ptr = data.data();
+    std::uint8_t *ptr = data_.data();
 
     while (currentPixel < pixelCount) {
         std::uint8_t chunkHeader = 0;
@@ -138,43 +143,43 @@ void TGAImage::load_rle_data(std::ifstream &file) {
         if (chunkHeader < 128) {
             ++chunkHeader;
             for (size_t i = 0; i < chunkHeader; ++i) {
-                file.read(reinterpret_cast<char *>(ptr), bytespp);
+                file.read(reinterpret_cast<char *>(ptr), bytespp_);
                 if (!file.good()) {
                     throw std::runtime_error("An error occurred while reading the file");
                 }
                 ++currentPixel;
-                ptr += bytespp;
+                ptr += bytespp_;
             }
         } else {
             chunkHeader -= 127;
             std::array<std::uint8_t, 4> pixel{};
-            file.read(reinterpret_cast<char *>(pixel.data()), bytespp);
+            file.read(reinterpret_cast<char *>(pixel.data()), bytespp_);
             if (!file.good()) {
                 throw std::runtime_error("An error occurred while reading the file");
             }
             for (size_t i = 0; i < chunkHeader; ++i) {
-                std::copy_n(pixel.data(), bytespp, ptr);
+                std::copy_n(pixel.data(), bytespp_, ptr);
                 ++currentPixel;
-                ptr += bytespp;
+                ptr += bytespp_;
             }
         }
     }
 }
 
-void TGAImage::write_rle_data(std::ofstream &file) const {
-    const size_t pixelCount = static_cast<size_t>(width) * height;
+void TGAImage::writeRleData(std::ofstream &file) const {
+    const size_t pixelCount = static_cast<size_t>(width_) * height_;
     const std::uint8_t maxChunkLength = 128;
     size_t currentPixel = 0;
 
     while (currentPixel < pixelCount) {
         size_t chunkLength = 1;
         std::array<std::uint8_t, 4> chunkValue{};
-        std::copy_n(&data[currentPixel * bytespp], bytespp, chunkValue.data());
+        std::copy_n(&data_[currentPixel * bytespp_], bytespp_, chunkValue.data());
         bool stop = false;
 
         while (currentPixel + chunkLength < pixelCount && chunkLength < maxChunkLength) {
-            for (size_t i = 0; i < bytespp; ++i) {
-                if (data[(currentPixel + chunkLength) * bytespp + i] != chunkValue[i]) {
+            for (size_t i = 0; i < bytespp_; ++i) {
+                if (data_[(currentPixel + chunkLength) * bytespp_ + i] != chunkValue[i]) {
                     stop = true;
                     break;
                 }
@@ -188,6 +193,7 @@ void TGAImage::write_rle_data(std::ofstream &file) const {
         currentPixel += chunkLength;
         chunkLength += 127;
         file.write(reinterpret_cast<const char *>(&chunkLength), 1);
-        file.write(reinterpret_cast<const char *>(chunkValue.data()), bytespp);
+        file.write(reinterpret_cast<const char *>(chunkValue.data()), bytespp_);
     }
 }
+// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)

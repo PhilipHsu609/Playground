@@ -1,10 +1,10 @@
 #pragma once
 
 #include <array>
+#include <concepts>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
-#include <type_traits>
 #include <vector>
 
 static_assert(true); // This is a workaround for a bug in clangd
@@ -50,51 +50,51 @@ struct TGAColor {
 
 class TGAImage {
   public:
-    TGAImage(const char *filename);
+    explicit TGAImage(const char *filename);
     TGAImage(std::uint16_t width, std::uint16_t height, std::uint8_t bytespp);
     void save(const char *filename) const;
 
     void flipVertically();
     void flipHorizontally();
 
-    template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    template <std::integral T>
     void set(T x, T y, TGAColor color) {
-        if (static_cast<std::uint16_t>(x) >= width ||
-            static_cast<std::uint16_t>(y) >= height) {
+        if (static_cast<std::uint16_t>(x) >= width_ ||
+            static_cast<std::uint16_t>(y) >= height_) {
             throw std::out_of_range("Coordinates out of bounds");
         }
-        size_t index = static_cast<size_t>(x) + static_cast<size_t>(y) * width;
+        const size_t index = static_cast<size_t>(x) + static_cast<size_t>(y) * width_;
         std::uint32_t bgra = color();
-        std::memcpy(&data[index * bytespp], &bgra, bytespp);
+        std::memcpy(&data_[index * bytespp_], &bgra, bytespp_);
     }
 
-    template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+    template <std::integral T>
     std::uint8_t get(T x, T y) const {
-        if (static_cast<std::uint16_t>(x) >= width ||
-            static_cast<std::uint16_t>(y) >= height) {
+        if (static_cast<std::uint16_t>(x) >= width_ ||
+            static_cast<std::uint16_t>(y) >= height_) {
             throw std::out_of_range("Coordinates out of bounds");
         }
-        size_t index = static_cast<size_t>(x) + static_cast<size_t>(y) * width;
-        return data[index * bytespp];
+        size_t index = static_cast<size_t>(x) + static_cast<size_t>(y) * width_;
+        return data_[index * bytespp_];
     }
 
-    std::uint16_t get_width() const { return width; }
-    std::uint16_t get_height() const { return height; }
-    std::uint8_t get_bytespp() const { return bytespp; }
-    std::vector<std::uint8_t> &buffer() { return data; }
+    [[nodiscard]] std::uint16_t getWidth() const { return width_; }
+    [[nodiscard]] std::uint16_t getHeight() const { return height_; }
+    [[nodiscard]] std::uint8_t getBytespp() const { return bytespp_; }
+    std::vector<std::uint8_t> &buffer() { return data_; }
 
     enum Format { GRAYSCALE = 1, RGB = 3, RGBA = 4 };
 
   private:
-    void load_tga_data(const char *filename);
-    void write_tga_data(const char *filename, bool rle = true) const;
-    void load_rle_data(std::ifstream &file);
-    void write_rle_data(std::ofstream &file) const;
+    void loadTgaData(const char *filename);
+    void writeTgaData(const char *filename, bool rle = true) const;
+    void loadRleData(std::ifstream &file);
+    void writeRleData(std::ofstream &file) const;
 
-    std::uint16_t width = 0;
-    std::uint16_t height = 0;
-    std::uint8_t bytespp = 1;
-    std::vector<std::uint8_t> data;
+    std::uint16_t width_ = 0;
+    std::uint16_t height_ = 0;
+    std::uint8_t bytespp_ = 1;
+    std::vector<std::uint8_t> data_;
 };
 
 // Common color constants
