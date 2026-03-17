@@ -325,6 +325,37 @@ Object eval(const Expression &expression, const std::shared_ptr<Environment> &en
             [&env](const Box<CallExpression> &expr) -> Object {
                 return evalCallExpression(*expr, env);
             },
+            [&env](const Box<ArrayLiteral> &expr) -> Object {
+                auto elements = evalExpressions(expr->elements, env);
+                if (!elements.empty() && std::holds_alternative<Error>(elements[0])) {
+                    return elements[0];
+                }
+                return Array{elements};
+            },
+            [&env](const Box<IndexExpression> &expr) -> Object {
+                auto left = eval(expr->left, env);
+                if (std::holds_alternative<Error>(left)) {
+                    return left;
+                }
+                auto index = eval(expr->index, env);
+                if (std::holds_alternative<Error>(index)) {
+                    return index;
+                }
+                if (!std::holds_alternative<Box<Array>>(left)) {
+                    return Error{
+                        fmt::format("index operator not supported: {}", inspect(left))};
+                }
+                auto arr = std::get<Box<Array>>(left);
+                if (!std::holds_alternative<int64_t>(index)) {
+                    return Error{fmt::format("array index must be integer, got {}",
+                                             inspect(index))};
+                }
+                int64_t idx = std::get<int64_t>(index);
+                if (idx < 0 || static_cast<size_t>(idx) >= arr->elements.size()) {
+                    return nullptr;
+                }
+                return arr->elements[static_cast<size_t>(idx)];
+            },
             [](const auto &) -> Object { return Error{"unknown expression type"}; }},
         expression);
 }

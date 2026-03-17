@@ -29,6 +29,11 @@ std::string inspect(const Object &obj) {
                     toString(fn->body));
             },
             [](const Box<Builtin> &) -> std::string { return "builtin function"; },
+            [](const Box<Array> &arr) -> std::string {
+                return fmt::format(
+                    "[{}]",
+                    fmt::join(std::views::transform(arr->elements, inspect), ", "));
+            },
             [](const Error &err) -> std::string { return "ERROR: " + err.message; }},
         obj);
 }

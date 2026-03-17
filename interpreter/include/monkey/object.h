@@ -13,9 +13,11 @@
 namespace monkey {
 
 class Environment;
+
 struct ReturnValue;
 struct Function;
 struct Builtin;
+struct Array;
 
 struct Error {
     std::string message;
@@ -26,7 +28,7 @@ struct String {
 };
 
 using Object = std::variant<int64_t, bool, std::nullptr_t, String, Box<ReturnValue>,
-                            Box<Function>, Box<Builtin>, Error>;
+                            Box<Function>, Box<Builtin>, Box<Array>, Error>;
 
 struct ReturnValue {
     Object value;
@@ -42,6 +44,10 @@ using BuiltinFunction = Object (*)(const std::vector<Object> &args);
 
 struct Builtin {
     BuiltinFunction fn;
+};
+
+struct Array {
+    std::vector<Object> elements;
 };
 
 std::string inspect(const Object &obj);

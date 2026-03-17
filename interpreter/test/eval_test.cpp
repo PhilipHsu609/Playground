@@ -208,3 +208,39 @@ TEST(EvalTest, BuiltinFunctions) {
         }
     }
 }
+
+TEST(EvalTest, ArrayLiterals) {
+    std::string input = "[1, 2 * 2, 3 + 3]";
+
+    Object evaluated = testEval(input);
+    ASSERT_TRUE(std::holds_alternative<Box<Array>>(evaluated));
+
+    auto arr = std::get<Box<Array>>(evaluated);
+    ASSERT_EQ(arr->elements.size(), 3);
+    testIntegerObject(arr->elements[0], 1);
+    testIntegerObject(arr->elements[1], 4);
+    testIntegerObject(arr->elements[2], 6);
+}
+
+TEST(EvalTest, ArrayIndexExpressions) {
+    std::vector<std::pair<std::string, Object>> tests = {
+        {"[1, 2, 3][0]", 1},
+        {"[1, 2, 3][1]", 2},
+        {"[1, 2, 3][2]", 3},
+        {"let i = 0; [1][i];", 1},
+        {"[1, 2, 3][1 + 1];", 3},
+        {"let arr = [1, 2, 3]; arr[0];", 1},
+        {"let arr = [1, 2, 3]; arr[1];", 2},
+        {"let arr = [1, 2, 3]; arr[2];", 3},
+        {"[1, 2, 3][3]", nullptr},
+        {"[1, 2, 3][-1]", nullptr}};
+
+    for (const auto &[input, expected] : tests) {
+        Object evaluated = testEval(input);
+        if (std::holds_alternative<int64_t>(expected)) {
+            testIntegerObject(evaluated, std::get<int64_t>(expected));
+        } else {
+            ASSERT_TRUE(std::holds_alternative<std::nullptr_t>(evaluated));
+        }
+    }
+}
