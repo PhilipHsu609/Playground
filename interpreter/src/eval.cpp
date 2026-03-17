@@ -28,10 +28,75 @@ const std::unordered_map<std::string, BuiltinFunction> BUILTINS{
          if (std::holds_alternative<String>(args[0])) {
              return static_cast<int64_t>(std::get<String>(args[0]).value.size());
          }
+         if (std::holds_alternative<Box<Array>>(args[0])) {
+             return static_cast<int64_t>(std::get<Box<Array>>(args[0])->elements.size());
+         }
          return Error{
              fmt::format("argument to `len` not supported, got {}", inspect(args[0]))};
      }},
-};
+    {"first",
+     [](const std::vector<Object> &args) -> Object {
+         if (args.size() != 1) {
+             return Error{
+                 fmt::format("wrong number of arguments. got={}, want=1", args.size())};
+         }
+         if (!std::holds_alternative<Box<Array>>(args[0])) {
+             return Error{fmt::format("argument to `first` must be array, got {}",
+                                      inspect(args[0]))};
+         }
+         auto arr = std::get<Box<Array>>(args[0]);
+         if (arr->elements.empty()) {
+             return nullptr;
+         }
+         return arr->elements[0];
+     }},
+    {"last",
+     [](const std::vector<Object> &args) -> Object {
+         if (args.size() != 1) {
+             return Error{
+                 fmt::format("wrong number of arguments. got={}, want=1", args.size())};
+         }
+         if (!std::holds_alternative<Box<Array>>(args[0])) {
+             return Error{fmt::format("argument to `last` must be array, got {}",
+                                      inspect(args[0]))};
+         }
+         auto arr = std::get<Box<Array>>(args[0]);
+         if (arr->elements.empty()) {
+             return nullptr;
+         }
+         return arr->elements[arr->elements.size() - 1];
+     }},
+    {"rest",
+     [](const std::vector<Object> &args) -> Object {
+         if (args.size() != 1) {
+             return Error{
+                 fmt::format("wrong number of arguments. got={}, want=1", args.size())};
+         }
+         if (!std::holds_alternative<Box<Array>>(args[0])) {
+             return Error{fmt::format("argument to `rest` must be array, got {}",
+                                      inspect(args[0]))};
+         }
+         auto arr = std::get<Box<Array>>(args[0]);
+         if (arr->elements.empty()) {
+             return nullptr;
+         }
+         std::vector<Object> newElements(arr->elements.begin() + 1, arr->elements.end());
+         return Array{newElements};
+     }},
+    {"push", [](const std::vector<Object> &args) -> Object {
+         if (args.size() != 2) {
+             return Error{
+                 fmt::format("wrong number of arguments. got={}, want=2", args.size())};
+         }
+         if (!std::holds_alternative<Box<Array>>(args[0])) {
+             return Error{fmt::format("argument to `push` must be array, got {}",
+                                      inspect(args[0]))};
+         }
+         auto arr = std::get<Box<Array>>(args[0]);
+         std::vector<Object> newElements = arr->elements;
+         newElements.push_back(args[1]);
+         return Array{newElements};
+     }}};
 
 bool isTrue(const Object &obj) {
     if (std::holds_alternative<bool>(obj)) {

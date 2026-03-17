@@ -30,6 +30,15 @@ void testBooleanObject(const Object &obj, bool expected) {
     ASSERT_EQ(std::get<bool>(obj), expected);
 }
 
+void testArrayObject(const Object &obj, const Array &expected) {
+    ASSERT_TRUE(std::holds_alternative<Box<Array>>(obj));
+    const auto &arr = std::get<Box<Array>>(obj);
+    ASSERT_EQ(arr->elements.size(), expected.elements.size());
+    for (size_t i = 0; i < expected.elements.size(); ++i) {
+        testIntegerObject(arr->elements[i], std::get<int64_t>(expected.elements[i]));
+    }
+}
+
 TEST(EvalTest, IntegerExpression) {
     std::vector<std::pair<std::string, int64_t>> tests = {
         {"5", 5},
@@ -195,16 +204,30 @@ TEST(EvalTest, BuiltinFunctions) {
         {R"(len("four"))", 4},
         {R"(len("hello world"))", 11},
         {R"(len(1))", Error{"argument to `len` not supported, got 1"}},
-        {R"(len("one", "two"))", Error{"wrong number of arguments. got=2, want=1"}}};
+        {R"(len("one", "two"))", Error{"wrong number of arguments. got=2, want=1"}},
+        {"len([1, 2, 3])", 3},
+        {"first([1, 2, 3])", 1},
+        {"first([])", nullptr},
+        {"first(1)", Error{"argument to `first` must be array, got 1"}},
+        {"last([1, 2, 3])", 3},
+        {"last([])", nullptr},
+        {"last(1)", Error{"argument to `last` must be array, got 1"}},
+        {"rest([1, 2, 3])", Array{{2, 3}}},
+        {"rest([])", nullptr},
+        {"push([1, 2], 3)", Array{{1, 2, 3}}}};
 
     for (const auto &[input, expected] : tests) {
         Object evaluated = testEval(input);
         if (std::holds_alternative<int64_t>(expected)) {
             testIntegerObject(evaluated, std::get<int64_t>(expected));
-        } else {
+        } else if (std::holds_alternative<Error>(expected)) {
             ASSERT_TRUE(std::holds_alternative<Error>(evaluated));
             ASSERT_EQ(std::get<Error>(evaluated).message,
                       std::get<Error>(expected).message);
+        } else if (std::holds_alternative<Box<Array>>(expected)) {
+            testArrayObject(evaluated, *std::get<Box<Array>>(expected));
+        } else {
+            ASSERT_TRUE(std::holds_alternative<std::nullptr_t>(evaluated));
         }
     }
 }
