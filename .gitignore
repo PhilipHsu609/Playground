@@ -9,3 +9,4 @@ container/rootfs/
 .vscode/
 .cache/
 compile_commands.json
+tinyrenderer/output.tga
