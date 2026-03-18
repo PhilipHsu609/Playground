@@ -32,7 +32,7 @@ int main() {
         for (size_t j = 0; j < 3; j++) {
             Vec3f v = model.vert(face[j]);
             screenCoords[j] =
-                Vec3f((v[0] + 1.f) * width / 2.f, (v[1] + 1.f) * height / 2.f, v[2]);
+                Vec3f((v.x() + 1.f) * width / 2.f, (v.y() + 1.f) * height / 2.f, v.z());
             worldCoords[j] = v;
         }
 

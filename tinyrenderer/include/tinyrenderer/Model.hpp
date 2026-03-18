@@ -10,7 +10,9 @@ class Model {
     [[nodiscard]] size_t nverts() const { return verts_.size(); }
     [[nodiscard]] size_t nfaces() const { return faces_.size(); }
     [[nodiscard]] Vec3f vert(size_t i) const { return verts_[i]; }
-    [[nodiscard]] const std::vector<size_t> &face(size_t idx) const { return faces_[idx]; }
+    [[nodiscard]] const std::vector<size_t> &face(size_t idx) const {
+        return faces_[idx];
+    }
 
   private:
     std::vector<Vec3f> verts_;

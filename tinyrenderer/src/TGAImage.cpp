@@ -23,16 +23,12 @@ void TGAImage::flipVertically() {
 
     const size_t half = height_ >> 1;
     const size_t stride = static_cast<size_t>(width_) * bytespp_;
-    std::vector<std::uint8_t> buffer(stride);
-
     std::uint8_t *start = data_.data();
 
     for (size_t i = 0; i < half; ++i) {
         std::uint8_t *line1 = &start[i * stride];
         std::uint8_t *line2 = &start[(height_ - 1 - i) * stride];
-        std::copy(line1, line1 + stride, buffer.data());
-        std::copy(line2, line2 + stride, line1);
-        std::copy(buffer.begin(), buffer.end(), line2);
+        std::swap_ranges(line1, line1 + stride, line2);
     }
 }
 
@@ -69,7 +65,7 @@ void TGAImage::loadTgaData(const char *filename) {
     height_ = header.height;
     bytespp_ = header.pixelDepth >> 3;
 
-    if (width_ <= 0 || height_ <= 0 ||
+    if (width_ == 0 || height_ == 0 ||
         (bytespp_ != Format::GRAYSCALE && bytespp_ != Format::RGB &&
          bytespp_ != Format::RGBA)) {
         throw std::runtime_error(fmt::format("Invalid TGA file: {}", filename));
@@ -191,8 +187,8 @@ void TGAImage::writeRleData(std::ofstream &file) const {
         }
 
         currentPixel += chunkLength;
-        chunkLength += 127;
-        file.write(reinterpret_cast<const char *>(&chunkLength), 1);
+        auto header = static_cast<std::uint8_t>(chunkLength + 127);
+        file.write(reinterpret_cast<const char *>(&header), 1);
         file.write(reinterpret_cast<const char *>(chunkValue.data()), bytespp_);
     }
 }

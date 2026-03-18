@@ -38,6 +38,50 @@ class Vec {
         return data_[static_cast<size_t>(i)];
     }
 
+    constexpr T &x()
+        requires(N >= 1)
+    {
+        return data_[0];
+    }
+    constexpr const T &x() const
+        requires(N >= 1)
+    {
+        return data_[0];
+    }
+
+    constexpr T &y()
+        requires(N >= 2)
+    {
+        return data_[1];
+    }
+    constexpr const T &y() const
+        requires(N >= 2)
+    {
+        return data_[1];
+    }
+
+    constexpr T &z()
+        requires(N >= 3)
+    {
+        return data_[2];
+    }
+    constexpr const T &z() const
+        requires(N >= 3)
+    {
+        return data_[2];
+    }
+
+    constexpr T &w()
+        requires(N >= 4)
+    {
+        return data_[3];
+    }
+    constexpr const T &w() const
+        requires(N >= 4)
+    {
+        return data_[3];
+    }
+
     constexpr Vec operator+(const Vec &v) const {
         Vec result;
         for (size_t i = 0; i < N; ++i) {
@@ -135,8 +179,8 @@ constexpr T dot(const Vec<T, N> &a, const Vec<T, N> &b) {
 
 template <typename T>
 constexpr Vec<T, 3> cross(const Vec<T, 3> &a, const Vec<T, 3> &b) {
-    return Vec<T, 3>(a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2],
-                     a[0] * b[1] - a[1] * b[0]);
+    return Vec<T, 3>(a.y() * b.z() - a.z() * b.y(), a.z() * b.x() - a.x() * b.z(),
+                     a.x() * b.y() - a.y() * b.x());
 }
 
 using Vec4f = Vec<float, 4>;

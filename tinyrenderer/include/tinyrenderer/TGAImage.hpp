@@ -25,16 +25,12 @@ struct TGAHeader {
 
 struct TGAColor {
     std::uint8_t b{}, g{}, r{}, a{};
-    std::uint8_t bytespp = 1;
 
     constexpr TGAColor() = default;
     constexpr TGAColor(std::uint8_t r, std::uint8_t g, std::uint8_t b)
-        : b(b), g(g), r(r), a(255), bytespp(3) {}
+        : b(b), g(g), r(r), a(255) {}
     constexpr TGAColor(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a)
-        : b(b), g(g), r(r), a(a), bytespp(4) {}
-    constexpr TGAColor(std::uint32_t argb, std::uint8_t bytespp) : bytespp(bytespp) {
-        fromArgb(argb);
-    }
+        : b(b), g(g), r(r), a(a) {}
 
     constexpr void fromArgb(std::uint32_t argb) {
         a = (argb >> 24) & 0xff;
@@ -69,13 +65,17 @@ class TGAImage {
     }
 
     template <std::integral T>
-    std::uint8_t get(T x, T y) const {
+    TGAColor get(T x, T y) const {
         if (static_cast<std::uint16_t>(x) >= width_ ||
             static_cast<std::uint16_t>(y) >= height_) {
             throw std::out_of_range("Coordinates out of bounds");
         }
-        size_t index = static_cast<size_t>(x) + static_cast<size_t>(y) * width_;
-        return data_[index * bytespp_];
+        const size_t index = static_cast<size_t>(x) + static_cast<size_t>(y) * width_;
+        std::uint32_t argb = 0;
+        std::memcpy(&argb, &data_[index * bytespp_], bytespp_);
+        TGAColor color;
+        color.fromArgb(argb);
+        return color;
     }
 
     [[nodiscard]] std::uint16_t getWidth() const { return width_; }

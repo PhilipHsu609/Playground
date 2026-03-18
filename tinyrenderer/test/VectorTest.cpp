@@ -38,9 +38,9 @@ TEST(Vector, Operators) {
     // Test normalization
     Vec3f v4 = v1.normalize();
     float norm = std::sqrt(1.0f + 4.0f + 9.0f);
-    EXPECT_NEAR(v4[0], 1.0f / norm, 1e-6);
-    EXPECT_NEAR(v4[1], 2.0f / norm, 1e-6);
-    EXPECT_NEAR(v4[2], 3.0f / norm, 1e-6);
+    EXPECT_NEAR(v4.x(), 1.0f / norm, 1e-6);
+    EXPECT_NEAR(v4.y(), 2.0f / norm, 1e-6);
+    EXPECT_NEAR(v4.z(), 3.0f / norm, 1e-6);
 
     // Test in-place addition
     v3.clear();
