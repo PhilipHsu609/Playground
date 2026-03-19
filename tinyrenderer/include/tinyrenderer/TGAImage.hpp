@@ -40,7 +40,7 @@ struct TGAColor {
     }
 
     [[nodiscard]] constexpr std::uint32_t toArgb() const {
-        return static_cast<uint32_t>((a << 24) | (r << 16) | (g << 8) | b);
+        return static_cast<std::uint32_t>((a << 24) | (r << 16) | (g << 8) | b);
     }
 };
 
