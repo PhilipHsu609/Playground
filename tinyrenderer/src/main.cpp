@@ -10,13 +10,13 @@
 #include <vector>
 
 int main() {
-    constexpr size_t width = 800;
-    constexpr size_t height = 800;
+    constexpr size_t width = 1600;
+    constexpr size_t height = 1600;
 
     TGAImage image(width, height, TGAImage::RGB);
     std::vector<float> zbuffer(width * height, std::numeric_limits<float>::lowest());
 
-    const Model model("obj/african_head/african_head.obj");
+    const Model model("obj/diablo3_pose/diablo3_pose.obj");
 
     fmt::print("nverts: {}\n", model.nverts());
     fmt::print("nfaces: {}\n", model.nfaces());
@@ -36,9 +36,11 @@ int main() {
             worldCoords[j] = v;
         }
 
+        // Compute the normal of the triangle and the intensity of the light on it
         Vec3f n = cross(worldCoords[2] - worldCoords[0], worldCoords[1] - worldCoords[0]);
         n = n.normalize();
         const float intensity = dot(n, lightDir);
+
         if (intensity > 0) {
             const TGAColor color(static_cast<std::uint8_t>(intensity * 255),
                                  static_cast<std::uint8_t>(intensity * 255),

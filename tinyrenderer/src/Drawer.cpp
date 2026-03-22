@@ -99,12 +99,16 @@ void triangle(const std::array<Vec3f, 3> &pts, std::vector<float> &zbuffer,
             const Vec2f p(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
             const Vec3f bary = barycentric(p, Vec2f(t0), Vec2f(t1), Vec2f(t2));
 
+            // If any of the barycentric coordinates is negative, the point is outside the
+            // triangle
             if (bary.x() < 0 || bary.y() < 0 || bary.z() < 0) {
                 continue;
             }
 
+            // Interpolate the z value using the barycentric coordinates
             const float z =
                 bary.x() * pts[0].z() + bary.y() * pts[1].z() + bary.z() * pts[2].z();
+
             const auto index =
                 static_cast<size_t>(y) * image.getWidth() + static_cast<size_t>(x);
             if (zbuffer[index] < z) {
