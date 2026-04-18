@@ -7,6 +7,7 @@ target_sources(
     ${TEST_TARGET}
     PRIVATE
     VectorTest.cpp
+    MatrixTest.cpp
 )
 
 target_link_libraries(
