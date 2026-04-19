@@ -4,6 +4,8 @@
 
 #include <array>
 #include <cstddef>
+#include <initializer_list>
+#include <stdexcept>
 
 template <typename T, size_t R, size_t C>
 class Mat {
@@ -12,11 +14,22 @@ class Mat {
   public:
     constexpr Mat() = default;
 
-    template <typename... Args>
-    constexpr explicit Mat(Args... args) : data_{args...} {
-        static_assert(
-            sizeof...(args) == R * C,
-            "Number of arguments must match the number of elements in the matrix");
+    constexpr Mat(std::initializer_list<std::initializer_list<T>> rows) {
+        if (rows.size() != R) {
+            throw std::invalid_argument("Mat: row count mismatch");
+        }
+        size_t i = 0;
+        for (const auto &row : rows) {
+            if (row.size() != C) {
+                throw std::invalid_argument("Mat: column count mismatch");
+            }
+            size_t j = 0;
+            for (const auto &val : row) {
+                data_[i * C + j] = val;
+                ++j;
+            }
+            ++i;
+        }
     }
 
     constexpr T &operator()(size_t row, size_t col) { return data_[row * C + col]; }

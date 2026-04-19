@@ -8,6 +8,7 @@
 
 #include <array>
 #include <cmath>
+#include <exception>
 #include <limits>
 #include <numbers>
 #include <vector>
@@ -16,7 +17,7 @@ Mat<float, 3, 3> rotationMatrix(float angle) {
     float rad = angle / 180.f * std::numbers::pi_v<float>;
     const float c = std::cos(rad);
     const float s = std::sin(rad);
-    return Mat<float, 3, 3>{c, 0.f, s, 0.f, 1.f, 0.f, -s, 0.f, c};
+    return Mat<float, 3, 3>{{c, 0.f, s}, {0.f, 1.f, 0.f}, {-s, 0.f, c}};
 }
 
 Vec3f persp(Vec3f v, float c) {
@@ -28,7 +29,7 @@ Vec3f viewport(Vec3f v, float w, float h) {
     return Vec3f((v.x() + 1.f) * w / 2.f, (v.y() + 1.f) * h / 2.f, v.z());
 }
 
-int main() {
+int main() try {
     constexpr size_t width = 1600;
     constexpr size_t height = 1600;
 
@@ -72,4 +73,7 @@ int main() {
     image.save("output.tga");
 
     return 0;
+} catch (const std::exception &e) {
+    fmt::print(stderr, "error: {}\n", e.what());
+    return 1;
 }
