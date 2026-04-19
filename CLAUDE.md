@@ -1,88 +1,43 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Purpose
 
-This workspace is a learning playground for miscellaneous projects. Act as a teaching assistant: explain concepts, guide understanding, and help build intuition rather than just writing code. When asked to implement something, walk through the reasoning. Projects here may span any topic — not limited to any single domain.
+Learning playground for miscellaneous projects. Act as a teaching assistant: explain
+concepts, guide understanding, and help build intuition rather than just writing code.
+Walk through the reasoning when implementing.
 
 ## Projects
 
-### `container/` — Linux Container Runtime from Scratch
+`README.md` is the source of truth for project status and rotation. Briefly:
 
-A single-file C program (`contained.c`, ~674 lines) that implements a minimal Linux container runtime, demonstrating the same kernel primitives that Docker/LXC use under the hood.
+- **`container/`** (C) — Linux container runtime from namespaces + cgroups + seccomp. Completed.
+- **`sELF/`** (C) — ELF binary format parser. Completed.
+- **`tinyrenderer/`** (C++23) — Software renderer following haqr.eu/tinyrenderer. Lessons 0–4 done; camera next.
+- **`interpreter/`** (C++23) — Monkey language from *Writing An Interpreter In Go*. Chapters 1–4 done (hash maps skipped). *Writing A Compiler In Go* is the planned next phase.
 
-**What it does:** Creates an isolated process with 6 Linux namespaces, pivot_root filesystem isolation into an Alpine Linux 3.19.1 rootfs, cgroup v2 resource limits, capability dropping, seccomp syscall filtering, and user namespace UID remapping.
+Each project has its own `README.md` with progress notes and a `Makefile`. C++ projects
+(`interpreter/`, `tinyrenderer/`) use CMake-style targets: `make config`, `make build`,
+`make test`, `make clean`. C projects (`container/`, `sELF/`) use plain Makefiles:
+`make` and `make clean` (sELF also has `make test`).
 
-**Architecture:** Procedural, with each security boundary as a dedicated function called in sequence by `child()`:
+## Gotchas
 
-```
-main() → clone(child, CLONE_NEWNS|NEWCGROUP|NEWPID|NEWIPC|NEWNET|NEWUTS)
-  ├── parent: handle_child_uid_map() — writes /proc/<pid>/uid_map and gid_map
-  └── child():
-        1. sethostname()     — random tarot-themed name
-        2. mounts()          — MS_PRIVATE remount, bind mount, pivot_root, unmount old root
-        3. userns()          — CLONE_NEWUSER + coordinate UID/GID maps with parent via socketpair
-        4. capabilities()    — drop 19 dangerous capabilities from bounding + inheritable sets
-        5. syscalls()        — seccomp BPF allowlist blocking setuid chmod, CLONE_NEWUSER escape, ptrace, etc.
-        6. execve()          — replace with requested command
-```
+- **Strict clang-tidy on C++ projects** — `-Werror` on Linux. Common hits:
+  `readability-identifier-naming` (camelBack fns, CamelCase types, trailing `_` on
+  private members), `google-explicit-constructor`, `modernize-use-nodiscard`,
+  `cppcoreguidelines-avoid-c-arrays`.
+- **TGA binary I/O** — `reinterpret_cast` in `tinyrenderer/src/TGAImage.cpp` is wrapped
+  in `NOLINTBEGIN/END` — it's required for `istream::read`/`ostream::write`.
+- **Container error style** — `fprintf(stderr, "context: %m\n")`; `%m` is glibc's
+  errno formatter. Used with labeled-goto cleanup.
 
-Parent-child coordination uses a `SOCK_SEQPACKET` socketpair. Error handling uses `fprintf(stderr, "...: %m\n")` with labeled-goto cleanup in `main()`.
+## Git
 
-### `sELF/` — ELF Binary Format Parser
-
-A C program that parses ELF (Executable and Linkable Format) binaries. Reads and displays ELF headers, program/section headers, symbol tables (`.symtab`, `.dynsym`), string tables, dynamic section, and relocations (`.rela.dyn`, `.rela.plt`).
-
-**Structure:** `main.c` drives the pipeline; `elf_utils.h` is a header-only library with all parsing and printing logic. The `Elf_File` struct accumulates parsed sections. The `test/` directory has sample C and x86_64 assembly programs to parse.
-
-### `tinyrenderer/` — Software Renderer
-
-A C++17 software renderer following [ssloy/tinyrenderer](https://github.com/ssloy/tinyrenderer). Implements TGA image I/O, Bresenham's line drawing, triangle rasterization with barycentric coordinates, back face culling, and z-buffer hidden surface removal.
-
-**Structure:** Headers in `include/tinyrenderer/`, implementations in `src/`, tests in `test/` (Google Test). Key classes: `TGAImage` (image I/O), `Vector` (generic math vectors), `Model` (OBJ loader), `Drawer` (rendering primitives). OBJ models live in `obj/`.
-
-**Build:** CMake with vcpkg (`fmt`, `GTest`). Compiler: `clang++`, C++17, strict warnings.
-
-### `interpreter/` — Monkey Language Interpreter
-
-A C++23 implementation of the Monkey programming language from Thorsten Ball's *Writing An Interpreter In Go*. Covers lexing, Pratt parsing, tree-walking evaluation, and a REPL. A vehicle for learning modern C++ features (C++20/23) in a meaningful context.
-
-**Structure:** Headers in `include/monkey/`, implementations in `src/`, tests in `test/` (Google Test). Build targets: `monkey_lib` (static library), `monkey` (REPL executable), `monkey_test` (tests).
-
-**Build:** CMake with FetchContent (`fmt`, `GTest`). Compiler: `clang++-18`, C++23, strict warnings.
-
-## Build Commands
-
-```bash
-# container/ — build and run
-make                    # compiles with clang-18, links libcap and libseccomp
-make clean
-sudo ./contained -m ./rootfs -u 0 -c /bin/sh
-clang-format -i contained.c
-
-# sELF/ — build and run
-make                    # compiles with gcc, also builds test binaries
-make clean
-./main <elf-file>       # e.g. ./main main
-
-# interpreter/ — build and run
-make config              # cmake configure (FetchContent fetches deps on first run)
-make build               # build
-make test                # run Google Test suite
-make clean
-
-# tinyrenderer/ — build and run
-make                    # cmake configure + build (Debug by default)
-make BUILD_TYPE=Release # release build
-make test               # run Google Test suite
-make clean
-```
-
-## Code Style (`container/`)
-
-- LLVM-based formatting via `.clang-format`: 4-space indent, 90-column limit, K&R braces, right-aligned pointers (`char *p`)
-- `#define _GNU_SOURCE` required (uses `clone`, `pivot_root`, `unshare`, etc.)
-- Compiler: `clang-18` with `-Wall -Wextra`
-- Error pattern: `fprintf(stderr, "context: %m\n")` — the `%m` is glibc's errno formatter
-- Resource constants are `#define`s near their relevant functions, not centralized
+- **Atomic commits** — one logical change per commit; don't bundle unrelated work.
+- **50/72 rule** — subject line ≤ 50 chars, body wrapped at 72 chars.
+- **Why, not what** — body explains motivation and constraints; the diff shows what changed.
+- **Consistent style** — imperative mood subject, no prefix (e.g. `Fix bugs`, not
+  `feat: fixed bugs` or `fix: bugs`). Convention choice is still open; stay consistent
+  until decided.
+- **Clean local history** — rebase / squash WIP before pushing.
+- **Use `.gitignore`** — never commit build artifacts, editor files, or local overrides.
