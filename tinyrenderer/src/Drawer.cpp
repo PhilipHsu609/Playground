@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <limits>
 #include <vector>
 
@@ -13,18 +14,25 @@ struct BBox {
 };
 
 template <size_t N>
-BBox findBbox(const std::array<Vec2i, N> &pts) {
-    BBox bbox{std::numeric_limits<int>::max(), std::numeric_limits<int>::min(),
-              std::numeric_limits<int>::max(), std::numeric_limits<int>::min()};
+BBox findBbox(const std::array<Vec2f, N> &pts) {
+    float minX = std::numeric_limits<float>::max();
+    float maxX = std::numeric_limits<float>::lowest();
+    float minY = std::numeric_limits<float>::max();
+    float maxY = std::numeric_limits<float>::lowest();
 
     for (const auto &pt : pts) {
-        bbox.minX = std::min(bbox.minX, pt.x());
-        bbox.maxX = std::max(bbox.maxX, pt.x());
-        bbox.minY = std::min(bbox.minY, pt.y());
-        bbox.maxY = std::max(bbox.maxY, pt.y());
+        minX = std::min(minX, pt.x());
+        maxX = std::max(maxX, pt.x());
+        minY = std::min(minY, pt.y());
+        maxY = std::max(maxY, pt.y());
     }
 
-    return bbox;
+    return BBox{
+        static_cast<int>(std::floor(minX)),
+        static_cast<int>(std::ceil(maxX)),
+        static_cast<int>(std::floor(minY)),
+        static_cast<int>(std::ceil(maxY)),
+    };
 }
 
 Vec3f barycentric(Vec2f p, Vec2f t0, Vec2f t1, Vec2f t2) {
@@ -83,9 +91,9 @@ void line(Vec2i u, Vec2i v, TGAImage &image, TGAColor color) {
 
 void triangle(const std::array<Vec3f, 3> &pts, std::vector<float> &zbuffer,
               TGAImage &image, TGAColor color) {
-    const Vec2i t0(pts[0]);
-    const Vec2i t1(pts[1]);
-    const Vec2i t2(pts[2]);
+    const Vec2f t0(pts[0]);
+    const Vec2f t1(pts[1]);
+    const Vec2f t2(pts[2]);
 
     const auto bbox = findBbox(std::array{t0, t1, t2});
 
@@ -97,7 +105,7 @@ void triangle(const std::array<Vec3f, 3> &pts, std::vector<float> &zbuffer,
     for (int x = minX; x <= maxX; x++) {
         for (int y = minY; y <= maxY; y++) {
             const Vec2f p(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
-            const Vec3f bary = barycentric(p, Vec2f(t0), Vec2f(t1), Vec2f(t2));
+            const Vec3f bary = barycentric(p, t0, t1, t2);
 
             // If any of the barycentric coordinates is negative, the point is outside the
             // triangle
@@ -111,7 +119,7 @@ void triangle(const std::array<Vec3f, 3> &pts, std::vector<float> &zbuffer,
 
             const auto index =
                 static_cast<size_t>(y) * image.getWidth() + static_cast<size_t>(x);
-            if (zbuffer[index] < z) {
+            if (zbuffer[index] > z) {
                 zbuffer[index] = z;
                 image.set(x, y, color);
             }

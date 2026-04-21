@@ -126,7 +126,7 @@ class Vec {
         return std::sqrt(sum);
     }
 
-    [[nodiscard]] Vec normalize() const
+    [[nodiscard]] constexpr Vec normalize() const
         requires std::floating_point<T>
     {
         const double n = norm();

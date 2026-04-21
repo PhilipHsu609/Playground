@@ -75,4 +75,14 @@ class Mat {
         }
         return result;
     }
+
+    [[nodiscard]] constexpr Mat<T, C, R> transpose() const {
+        Mat<T, C, R> result;
+        for (size_t i = 0; i < R; ++i) {
+            for (size_t j = 0; j < C; ++j) {
+                result(j, i) = (*this)(i, j);
+            }
+        }
+        return result;
+    }
 };

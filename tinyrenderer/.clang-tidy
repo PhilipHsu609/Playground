@@ -55,8 +55,15 @@ CheckOptions:
   # Naming: variables
   - key: readability-identifier-naming.VariableCase
     value: camelBack
+  # Allow short all-uppercase names for mathematical matrices (M, V, P, MVP, VP, etc.)
+  - key: readability-identifier-naming.VariableIgnoredRegexp
+    value: "^[A-Z][A-Z0-9]{0,4}$"
+  - key: readability-identifier-naming.LocalVariableIgnoredRegexp
+    value: "^[A-Z][A-Z0-9]{0,4}$"
   - key: readability-identifier-naming.ParameterCase
     value: camelBack
+  - key: readability-identifier-naming.ParameterIgnoredRegexp
+    value: "^[A-Z][A-Z0-9]{0,4}$"
   - key: readability-identifier-naming.MemberCase
     value: camelBack
   - key: readability-identifier-naming.PrivateMemberSuffix
