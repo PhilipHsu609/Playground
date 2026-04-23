@@ -6,7 +6,14 @@
 #include <array>
 #include <vector>
 
-void line(Vec2i u, Vec2i v, TGAImage &image, TGAColor color);
+struct Triangle {
+    std::array<Vec3f, 3> pts;
 
-void triangle(const std::array<Vec3f, 3> &pts, std::vector<float> &zbuffer,
-              TGAImage &image, TGAColor color);
+    [[nodiscard]] const Vec3f &operator[](size_t i) const { return pts[i]; }
+    Vec3f &operator[](size_t i) { return pts[i]; }
+};
+
+[[maybe_unused]] void line(Vec2i u, Vec2i v, TGAImage &image, TGAColor color);
+
+void rasterize(const Triangle &triangle, std::vector<float> &zbuffer,
+               TGAImage &frameBuffer, TGAColor color);

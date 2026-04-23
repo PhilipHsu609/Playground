@@ -115,12 +115,12 @@ int main() try {
     for (size_t i = 0; i < model.nfaces(); i++) {
         const auto &face = model.face(i);
 
-        std::array<Vec3f, 3> screenCoords;
+        Triangle tri;
         std::array<Vec3f, 3> worldCoords;
 
         for (size_t j = 0; j < 3; j++) {
             const Vec3f &v = model.vert(face[j]);
-            screenCoords[j] = project(v, MVP, VP);
+            tri[j] = project(v, MVP, VP);
             worldCoords[j] = v;
         }
 
@@ -133,7 +133,7 @@ int main() try {
             const TGAColor color(static_cast<std::uint8_t>(intensity * 255),
                                  static_cast<std::uint8_t>(intensity * 255),
                                  static_cast<std::uint8_t>(intensity * 255));
-            triangle(screenCoords, zbuffer, image, color);
+            rasterize(tri, zbuffer, image, color);
         }
     }
 

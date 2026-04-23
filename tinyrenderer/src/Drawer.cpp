@@ -49,6 +49,11 @@ Vec3f barycentric(Vec2f p, Vec2f t0, Vec2f t1, Vec2f t2) {
 
     return Vec3f(alpha, beta, gamma);
 }
+
+float interpolateZ(const Vec3f &bary, const Triangle &triangle) {
+    return bary.x() * triangle[0].z() + bary.y() * triangle[1].z() +
+           bary.z() * triangle[2].z();
+}
 } // namespace
 
 void line(Vec2i u, Vec2i v, TGAImage &image, TGAColor color) {
@@ -89,18 +94,18 @@ void line(Vec2i u, Vec2i v, TGAImage &image, TGAColor color) {
     }
 }
 
-void triangle(const std::array<Vec3f, 3> &pts, std::vector<float> &zbuffer,
-              TGAImage &image, TGAColor color) {
-    const Vec2f t0(pts[0]);
-    const Vec2f t1(pts[1]);
-    const Vec2f t2(pts[2]);
+void rasterize(const Triangle &triangle, std::vector<float> &zbuffer,
+               TGAImage &frameBuffer, TGAColor color) {
+    const Vec2f t0(triangle[0]);
+    const Vec2f t1(triangle[1]);
+    const Vec2f t2(triangle[2]);
 
     const auto bbox = findBbox(std::array{t0, t1, t2});
 
     const int minX = std::max(bbox.minX, 0);
-    const int maxX = std::min(bbox.maxX, static_cast<int>(image.getWidth()) - 1);
+    const int maxX = std::min(bbox.maxX, static_cast<int>(frameBuffer.getWidth()) - 1);
     const int minY = std::max(bbox.minY, 0);
-    const int maxY = std::min(bbox.maxY, static_cast<int>(image.getHeight()) - 1);
+    const int maxY = std::min(bbox.maxY, static_cast<int>(frameBuffer.getHeight()) - 1);
 
     for (int x = minX; x <= maxX; x++) {
         for (int y = minY; y <= maxY; y++) {
@@ -114,14 +119,13 @@ void triangle(const std::array<Vec3f, 3> &pts, std::vector<float> &zbuffer,
             }
 
             // Interpolate the z value using the barycentric coordinates
-            const float z =
-                bary.x() * pts[0].z() + bary.y() * pts[1].z() + bary.z() * pts[2].z();
+            const float z = interpolateZ(bary, triangle);
 
             const auto index =
-                static_cast<size_t>(y) * image.getWidth() + static_cast<size_t>(x);
+                static_cast<size_t>(y) * frameBuffer.getWidth() + static_cast<size_t>(x);
             if (zbuffer[index] > z) {
                 zbuffer[index] = z;
-                image.set(x, y, color);
+                frameBuffer.set(x, y, color);
             }
         }
     }
