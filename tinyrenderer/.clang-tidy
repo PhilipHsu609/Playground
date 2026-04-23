@@ -66,6 +66,8 @@ CheckOptions:
     value: "^[A-Z][A-Z0-9]{0,4}$"
   - key: readability-identifier-naming.MemberCase
     value: camelBack
+  - key: readability-identifier-naming.MemberIgnoredRegexp
+    value: "^[A-Z][A-Z0-9]{0,4}$"
   - key: readability-identifier-naming.PrivateMemberSuffix
     value: _
   - key: readability-identifier-naming.ProtectedMemberSuffix

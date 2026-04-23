@@ -94,8 +94,8 @@ void line(Vec2i u, Vec2i v, TGAImage &image, TGAColor color) {
     }
 }
 
-void rasterize(const Triangle &triangle, std::vector<float> &zbuffer,
-               TGAImage &frameBuffer, TGAColor color) {
+void rasterize(const Triangle &triangle, const IShader &shader,
+               std::vector<float> &zbuffer, TGAImage &frameBuffer) {
     const Vec2f t0(triangle[0]);
     const Vec2f t1(triangle[1]);
     const Vec2f t2(triangle[2]);
@@ -124,8 +124,11 @@ void rasterize(const Triangle &triangle, std::vector<float> &zbuffer,
             const auto index =
                 static_cast<size_t>(y) * frameBuffer.getWidth() + static_cast<size_t>(x);
             if (zbuffer[index] > z) {
-                zbuffer[index] = z;
-                frameBuffer.set(x, y, color);
+                const auto color = shader.fragment(bary);
+                if (color) {
+                    zbuffer[index] = z;
+                    frameBuffer.set(x, y, *color);
+                }
             }
         }
     }

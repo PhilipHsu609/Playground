@@ -86,3 +86,6 @@ class Mat {
         return result;
     }
 };
+
+using Mat3f = Mat<float, 3, 3>;
+using Mat4f = Mat<float, 4, 4>;

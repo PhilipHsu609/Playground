@@ -6,7 +6,6 @@
 
 #include <fmt/core.h>
 
-#include <array>
 #include <cmath>
 #include <exception>
 #include <limits>
@@ -31,7 +30,7 @@ auto viewMatrix(const Camera &cam) {
     const auto x = cross(cam.up, z).normalize();
     const auto y = cross(z, x);
 
-    Mat<float, 4, 4> result;
+    Mat4f result;
     for (size_t i = 0; i < 3; i++) {
         result(0, i) = x[i]; // row 0 = vector x
         result(1, i) = y[i]; // row 1 = vector y
@@ -51,7 +50,7 @@ auto viewMatrix(const Camera &cam) {
 auto projectionMatrix(const Camera &cam) {
     const float rad = cam.fovy * std::numbers::pi_v<float> / 180.f;
     const float f = 1.f / std::tan(rad / 2.f);
-    Mat<float, 4, 4> result;
+    Mat4f result;
     result(0, 0) = f / cam.aspect;
     result(1, 1) = f;
     result(2, 2) = (cam.farPlane + cam.nearPlane) / (cam.nearPlane - cam.farPlane);
@@ -64,7 +63,7 @@ auto projectionMatrix(const Camera &cam) {
  * @brief Computes the viewport (NDC-to-screen) matrix.
  */
 auto viewportMatrix(float w, float h) {
-    Mat<float, 4, 4> result;
+    Mat4f result;
     result(0, 0) = w / 2.f;
     result(1, 1) = h / 2.f;
     result(2, 2) = 1.f;
@@ -79,16 +78,51 @@ auto viewportMatrix(float w, float h) {
  *
  * Pipeline: world -> clip (mvp) -> NDC (perspective divide) -> screen (viewport).
  */
-Vec3f project(const Vec3f &world, const Mat<float, 4, 4> &mvp,
-              const Mat<float, 4, 4> &viewport) {
+Vec3f project(const Vec3f &world, const Mat4f &mvp, const Mat4f &viewport) {
     const Vec4f v(world.x(), world.y(), world.z(), 1.f);
     const Vec4f clip = mvp * v;
     return Vec3f(viewport * (clip / clip.w()));
 }
 
+struct PhongShader : public IShader {
+    // uniforms
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
+    const Model &model;
+    Mat4f MVP, VP;
+    Vec3f lightDir;
+
+    // varyings
+    Mat3f normals;
+
+    explicit PhongShader(const Model &model, const Mat4f &MVP, const Mat4f &VP,
+                         const Vec3f &lightDir)
+        : model(model), MVP(MVP), VP(VP), lightDir(lightDir) {}
+
+    [[nodiscard]] Vec3f vertex(size_t faceIdx, size_t cornerIdx) override {
+        const auto &v = model.vert(faceIdx, cornerIdx);
+        // Cache per-vertex normal as a varying for fragment() to interpolate.
+        const auto &n = model.normal(faceIdx, cornerIdx);
+        for (size_t i = 0; i < 3; i++) {
+            normals(i, cornerIdx) = n[i];
+        }
+        return project(v, MVP, VP);
+    }
+
+    [[nodiscard]] std::optional<TGAColor> fragment(const Vec3f &bary) const override {
+        Vec3f n = (normals * bary).normalize(); // interpolate vertex normals
+        const float ambient = 0.1f;
+        const float intensity = std::max(0.f, dot(n, lightDir));
+        const float specular =
+            std::pow(std::max(0.f, (2 * n * dot(n, lightDir) - lightDir).z()), 5.f);
+        const auto color =
+            static_cast<uint8_t>(std::min(1.f, ambient + intensity + specular) * 255);
+        return TGAColor(color, color, color);
+    }
+};
+
 int main() try {
-    constexpr size_t width = 1600;
-    constexpr size_t height = 1600;
+    constexpr size_t width = 800;
+    constexpr size_t height = 800;
 
     TGAImage image(width, height, TGAImage::RGB);
     std::vector<float> zbuffer(width * height, std::numeric_limits<float>::max());
@@ -98,9 +132,9 @@ int main() try {
     fmt::print("nverts: {}\n", model.nverts());
     fmt::print("nfaces: {}\n", model.nfaces());
 
-    constexpr Vec3f lightDir(0.f, 0.f, -1.f);
+    constexpr Vec3f lightDir(1.f, 0.f, 0.f);
     const Camera cam{
-        .eye = Vec3f(1.f, 1.f, 3.f),
+        .eye = Vec3f(0.f, 0.f, 3.f),
         .center = Vec3f(0.f, 0.f, 0.f),
         .up = Vec3f(0.f, 1.f, 0.f),
         .fovy = 45.f,
@@ -112,29 +146,15 @@ int main() try {
     const auto MVP = projectionMatrix(cam) * viewMatrix(cam);
     const auto VP = viewportMatrix(width, height);
 
+    PhongShader shader(model, MVP, VP, lightDir);
+
     for (size_t i = 0; i < model.nfaces(); i++) {
-        const auto &face = model.face(i);
-
-        Triangle tri;
-        std::array<Vec3f, 3> worldCoords;
-
-        for (size_t j = 0; j < 3; j++) {
-            const Vec3f &v = model.vert(face[j]);
-            tri[j] = project(v, MVP, VP);
-            worldCoords[j] = v;
-        }
-
-        // Compute the normal of the triangle and the intensity of the light on it
-        Vec3f n = cross(worldCoords[2] - worldCoords[0], worldCoords[1] - worldCoords[0]);
-        n = n.normalize();
-        const float intensity = dot(n, lightDir);
-
-        if (intensity > 0) {
-            const TGAColor color(static_cast<std::uint8_t>(intensity * 255),
-                                 static_cast<std::uint8_t>(intensity * 255),
-                                 static_cast<std::uint8_t>(intensity * 255));
-            rasterize(tri, zbuffer, image, color);
-        }
+        const Triangle tri{
+            shader.vertex(i, 0),
+            shader.vertex(i, 1),
+            shader.vertex(i, 2),
+        };
+        rasterize(tri, shader, zbuffer, image);
     }
 
     image.flipVertically();

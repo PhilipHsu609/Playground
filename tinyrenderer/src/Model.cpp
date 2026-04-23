@@ -1,7 +1,9 @@
 #include "tinyrenderer/Model.hpp"
 
+#include <array>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 Model::Model(const char *filename) {
@@ -15,25 +17,36 @@ Model::Model(const char *filename) {
         std::istringstream ss(line);
         char c{};
 
-        if (line[0] == 'v') {
-            if (line[1] == ' ') {
-                ss >> c;
-                Vec3f v;
-                ss >> v.x() >> v.y() >> v.z();
-                verts_.push_back(v);
-            }
-        } else if (line[0] == 'f') {
-            std::vector<size_t> f;
+        if (line.starts_with("v ")) {
+            ss >> c; // consume 'v'
+            Vec3f v;
+            ss >> v.x() >> v.y() >> v.z();
+            verts_.push_back(v);
+        } else if (line.starts_with("vn ")) {
+            ss >> c >> c; // consume 'v' 'n'
+            Vec3f n;
+            ss >> n.x() >> n.y() >> n.z();
+            normals_.push_back(n);
+        } else if (line.starts_with("f ")) {
+            ss >> c; // consume 'f'
+
+            std::array<FaceCorner, 3> face{};
+            size_t cornerIdx = 0;
 
             size_t vidx{}; // vertex index
             size_t tidx{}; // texture index
             size_t nidx{}; // normal index
-
-            ss >> c;
             while (ss >> vidx >> c >> tidx >> c >> nidx) {
-                f.push_back(vidx - 1);
+                if (cornerIdx >= 3) {
+                    throw std::runtime_error("Only triangular faces are supported");
+                }
+                face[cornerIdx++] = {vidx - 1, nidx - 1};
             }
-            faces_.push_back(f);
+            if (cornerIdx != 3) {
+                throw std::runtime_error("Face must have exactly 3 corners");
+            }
+
+            faces_.push_back(face);
         }
     }
 }

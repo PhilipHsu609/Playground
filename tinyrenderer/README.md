@@ -69,3 +69,47 @@ The bottom row puts $w' = -z$, which triggers the perspective divide. Row 2 maps
 - **Z-buffer convention**: OpenGL NDC puts *closer objects at smaller* $z$ (near plane $\to -1$). Depth test becomes `if (new_z < stored_z)` with z-buffer initialized to `+∞`.
 - **Gotcha**: when `eye - center` is parallel to `up`, `cross(up, z)` degenerates. Avoid straight-up/down views or switch `up` dynamically.
 - **Changing one eye coordinate** moves the camera along that world axis — to orbit the model, parameterize `eye` on a sphere around `center`.
+
+## Lesson 6: Shading
+
+Introduce a **programmable shader architecture** — the rasterizer becomes generic, and per-vertex/per-pixel work moves into a shader. Mirrors the OpenGL pipeline.
+
+**`IShader` interface**:
+
+```cpp
+struct IShader {
+    virtual Vec3f vertex(size_t faceIdx, size_t cornerIdx) = 0;
+    virtual std::optional<TGAColor> fragment(const Vec3f &bary) const = 0;
+};
+```
+
+- `vertex()` transforms a face's corner to screen space, and (as a side effect) stores per-vertex values ("varyings") as member state
+- `fragment()` reads the varyings, barycentric-interpolates them via the shader's own math, and returns the pixel color — or `nullopt` to discard
+
+**Pipeline flow** (per triangle):
+
+```
+for j in 0..2:           pts[j] = shader.vertex(faceIdx, j)
+                         Triangle tri{pts}
+rasterizer iterates:     for each pixel inside bbox:
+                             bary = barycentric(pixel, tri)
+                             color = shader.fragment(bary)
+                             if color: z-test, write framebuffer
+```
+
+**Phong reflection model** — the fragment shader combines three terms:
+
+$$I = I_a + I_d \max(0, \hat{n} \cdot \hat{l}) + I_s \max(0, \hat{r} \cdot \hat{v})^e$$
+
+where $\hat{r} = 2\hat{n}(\hat{n} \cdot \hat{l}) - \hat{l}$ is the reflected light direction and $e$ is the shininess exponent.
+
+- **Ambient**: constant background light — prevents pure black in unlit areas
+- **Diffuse** (Lambert): dot product of normal and light direction — brightest when surface faces the light
+- **Specular**: reflected-light direction dotted with view direction, raised to shininess — tight highlights on shiny surfaces
+
+**Varyings trick** — per-vertex normals are stored as *columns* of a `Mat3f`, so `normals * bary` gives the interpolated normal in a single multiply instead of three separate scales and adds.
+
+**Model extension** — OBJ's `vn x y z` lines and the normal index of `v/t/n` face entries are now parsed into a parallel `normals_` buffer; faces store `{vertIdx, normalIdx}` per corner.
+
+- **Discard order**: the z-buffer is updated only *after* the fragment returns a color, so discarded pixels don't pollute depth.
+- **Specular shortcut**: using $r \cdot v \approx r_z$ assumes the camera looks down world $-z$. True only when the eye is on the z-axis — otherwise need to compute view direction per pixel or move lighting to camera space.
