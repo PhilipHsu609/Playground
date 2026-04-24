@@ -10,6 +10,7 @@
 #include <exception>
 #include <limits>
 #include <numbers>
+#include <utility>
 #include <vector>
 
 struct Camera {
@@ -84,50 +85,56 @@ Vec3f project(const Vec3f &world, const Mat4f &mvp, const Mat4f &viewport) {
     return Vec3f(viewport * (clip / clip.w()));
 }
 
-struct PhongShader : public IShader {
+struct BlinnPhongShader : public IShader {
     // uniforms
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
-    const Model &model;
+    Model model;
     Mat4f MVP, VP;
     Vec3f lightDir;
+    Vec3f eye;
 
-    // varyings
+    // varyings (one column per triangle vertex)
     Mat3f normals;
+    Mat3f worldPositions;
 
-    explicit PhongShader(const Model &model, const Mat4f &MVP, const Mat4f &VP,
-                         const Vec3f &lightDir)
-        : model(model), MVP(MVP), VP(VP), lightDir(lightDir) {}
+    BlinnPhongShader(Model model, Mat4f MVP, Mat4f VP, Vec3f lightDir, Vec3f eye)
+        : model(std::move(model)), MVP(MVP), VP(VP), lightDir(lightDir), eye(eye) {}
 
     [[nodiscard]] Vec3f vertex(size_t faceIdx, size_t cornerIdx) override {
         const auto &v = model.vert(faceIdx, cornerIdx);
-        // Cache per-vertex normal as a varying for fragment() to interpolate.
         const auto &n = model.normal(faceIdx, cornerIdx);
+        // Cache per-vertex normal + world position as varyings for fragment()
+        // to interpolate. No modeling transform, so model space == world space.
         for (size_t i = 0; i < 3; i++) {
             normals(i, cornerIdx) = n[i];
+            worldPositions(i, cornerIdx) = v[i];
         }
         return project(v, MVP, VP);
     }
 
     [[nodiscard]] std::optional<TGAColor> fragment(const Vec3f &bary) const override {
-        Vec3f n = (normals * bary).normalize(); // interpolate vertex normals
+        const Vec3f n = (normals * bary).normalize();
+        const Vec3f worldPos = worldPositions * bary;
+        const Vec3f viewDir = (eye - worldPos).normalize();
+        const Vec3f halfway = (lightDir + viewDir).normalize();
+
         const float ambient = 0.1f;
-        const float intensity = std::max(0.f, dot(n, lightDir));
-        const float specular =
-            std::pow(std::max(0.f, (2 * n * dot(n, lightDir) - lightDir).z()), 5.f);
+        const float diffuse = std::max(0.f, dot(n, lightDir));
+        const float specular = std::pow(std::max(0.f, dot(n, halfway)), 50.f);
+
         const auto color =
-            static_cast<uint8_t>(std::min(1.f, ambient + intensity + specular) * 255);
+            static_cast<uint8_t>(std::min(1.f, ambient + diffuse + specular) * 255);
         return TGAColor(color, color, color);
     }
 };
 
 int main() try {
-    constexpr size_t width = 800;
-    constexpr size_t height = 800;
+    constexpr size_t width = 1600;
+    constexpr size_t height = 1600;
 
     TGAImage image(width, height, TGAImage::RGB);
     std::vector<float> zbuffer(width * height, std::numeric_limits<float>::max());
 
-    const Model model("obj/diablo3_pose/diablo3_pose.obj");
+    Model model("obj/diablo3_pose/diablo3_pose.obj");
 
     fmt::print("nverts: {}\n", model.nverts());
     fmt::print("nfaces: {}\n", model.nfaces());
@@ -146,9 +153,9 @@ int main() try {
     const auto MVP = projectionMatrix(cam) * viewMatrix(cam);
     const auto VP = viewportMatrix(width, height);
 
-    PhongShader shader(model, MVP, VP, lightDir);
+    BlinnPhongShader shader(std::move(model), MVP, VP, lightDir, cam.eye);
 
-    for (size_t i = 0; i < model.nfaces(); i++) {
+    for (size_t i = 0; i < shader.model.nfaces(); i++) {
         const Triangle tri{
             shader.vertex(i, 0),
             shader.vertex(i, 1),
