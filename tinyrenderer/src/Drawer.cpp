@@ -1,4 +1,5 @@
 #include "tinyrenderer/Drawer.hpp"
+#include "tinyrenderer/Shader.hpp"
 #include "tinyrenderer/TGAImage.hpp"
 #include "tinyrenderer/Vector.hpp"
 
@@ -124,11 +125,8 @@ void rasterize(const Triangle &triangle, const IShader &shader,
             const auto index =
                 static_cast<size_t>(y) * frameBuffer.getWidth() + static_cast<size_t>(x);
             if (zbuffer[index] > z) {
-                const auto color = shader.fragment(bary);
-                if (color) {
-                    zbuffer[index] = z;
-                    frameBuffer.set(x, y, *color);
-                }
+                zbuffer[index] = z;
+                frameBuffer.set(x, y, shader.fragment(bary));
             }
         }
     }

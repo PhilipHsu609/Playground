@@ -7,6 +7,7 @@ target_sources(
     TGAImage.cpp
     Drawer.cpp
     Model.cpp
+    Shader.cpp
 )
 
 target_include_directories(

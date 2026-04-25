@@ -43,7 +43,7 @@ class Vec {
     {
         return data_[0];
     }
-    constexpr const T &x() const
+    [[nodiscard]] constexpr const T &x() const
         requires(N >= 1)
     {
         return data_[0];
@@ -54,7 +54,7 @@ class Vec {
     {
         return data_[1];
     }
-    constexpr const T &y() const
+    [[nodiscard]] constexpr const T &y() const
         requires(N >= 2)
     {
         return data_[1];
@@ -65,7 +65,7 @@ class Vec {
     {
         return data_[2];
     }
-    constexpr const T &z() const
+    [[nodiscard]] constexpr const T &z() const
         requires(N >= 3)
     {
         return data_[2];
@@ -76,7 +76,7 @@ class Vec {
     {
         return data_[3];
     }
-    constexpr const T &w() const
+    [[nodiscard]] constexpr const T &w() const
         requires(N >= 4)
     {
         return data_[3];

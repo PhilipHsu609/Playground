@@ -1,6 +1,7 @@
 #include "tinyrenderer/Drawer.hpp"
 #include "tinyrenderer/Matrix.hpp"
 #include "tinyrenderer/Model.hpp"
+#include "tinyrenderer/Shader.hpp"
 #include "tinyrenderer/TGAImage.hpp"
 #include "tinyrenderer/Vector.hpp"
 
@@ -74,59 +75,6 @@ auto viewportMatrix(float w, float h) {
     return result;
 }
 
-/**
- * @brief Projects a world-space vertex to screen space.
- *
- * Pipeline: world -> clip (mvp) -> NDC (perspective divide) -> screen (viewport).
- */
-Vec3f project(const Vec3f &world, const Mat4f &mvp, const Mat4f &viewport) {
-    const Vec4f v(world.x(), world.y(), world.z(), 1.f);
-    const Vec4f clip = mvp * v;
-    return Vec3f(viewport * (clip / clip.w()));
-}
-
-struct BlinnPhongShader : public IShader {
-    // uniforms
-    Model model;
-    Mat4f MVP, VP;
-    Vec3f lightDir;
-    Vec3f eye;
-
-    // varyings (one column per triangle vertex)
-    Mat3f normals;
-    Mat3f worldPositions;
-
-    BlinnPhongShader(Model model, Mat4f MVP, Mat4f VP, Vec3f lightDir, Vec3f eye)
-        : model(std::move(model)), MVP(MVP), VP(VP), lightDir(lightDir), eye(eye) {}
-
-    [[nodiscard]] Vec3f vertex(size_t faceIdx, size_t cornerIdx) override {
-        const auto &v = model.vert(faceIdx, cornerIdx);
-        const auto &n = model.normal(faceIdx, cornerIdx);
-        // Cache per-vertex normal + world position as varyings for fragment()
-        // to interpolate. No modeling transform, so model space == world space.
-        for (size_t i = 0; i < 3; i++) {
-            normals(i, cornerIdx) = n[i];
-            worldPositions(i, cornerIdx) = v[i];
-        }
-        return project(v, MVP, VP);
-    }
-
-    [[nodiscard]] std::optional<TGAColor> fragment(const Vec3f &bary) const override {
-        const Vec3f n = (normals * bary).normalize();
-        const Vec3f worldPos = worldPositions * bary;
-        const Vec3f viewDir = (eye - worldPos).normalize();
-        const Vec3f halfway = (lightDir + viewDir).normalize();
-
-        const float ambient = 0.1f;
-        const float diffuse = std::max(0.f, dot(n, lightDir));
-        const float specular = std::pow(std::max(0.f, dot(n, halfway)), 50.f);
-
-        const auto color =
-            static_cast<uint8_t>(std::min(1.f, ambient + diffuse + specular) * 255);
-        return TGAColor(color, color, color);
-    }
-};
-
 int main() try {
     constexpr size_t width = 1600;
     constexpr size_t height = 1600;
@@ -135,11 +83,12 @@ int main() try {
     std::vector<float> zbuffer(width * height, std::numeric_limits<float>::max());
 
     Model model("obj/diablo3_pose/diablo3_pose.obj");
+    TGAImage diffuseMap("obj/diablo3_pose/diablo3_pose_diffuse.tga");
 
     fmt::print("nverts: {}\n", model.nverts());
     fmt::print("nfaces: {}\n", model.nfaces());
 
-    constexpr Vec3f lightDir(1.f, 0.f, 0.f);
+    constexpr Vec3f lightDir(0.f, 0.f, 1.f);
     const Camera cam{
         .eye = Vec3f(0.f, 0.f, 3.f),
         .center = Vec3f(0.f, 0.f, 0.f),
@@ -153,14 +102,10 @@ int main() try {
     const auto MVP = projectionMatrix(cam) * viewMatrix(cam);
     const auto VP = viewportMatrix(width, height);
 
-    BlinnPhongShader shader(std::move(model), MVP, VP, lightDir, cam.eye);
+    BlinnPhongTexturedShader shader(std::move(model), std::move(diffuseMap), MVP, VP,
+                                    lightDir, cam.eye);
 
-    for (size_t i = 0; i < shader.model.nfaces(); i++) {
-        const Triangle tri{
-            shader.vertex(i, 0),
-            shader.vertex(i, 1),
-            shader.vertex(i, 2),
-        };
+    for (const auto &tri : shader.triangles()) {
         rasterize(tri, shader, zbuffer, image);
     }
 

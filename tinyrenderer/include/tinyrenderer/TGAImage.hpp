@@ -65,7 +65,7 @@ class TGAImage {
     }
 
     template <std::integral T>
-    TGAColor get(T x, T y) const {
+    [[nodiscard]] TGAColor get(T x, T y) const {
         if (static_cast<std::uint16_t>(x) >= width_ ||
             static_cast<std::uint16_t>(y) >= height_) {
             throw std::out_of_range("Coordinates out of bounds");
