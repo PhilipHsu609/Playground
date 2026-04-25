@@ -113,3 +113,44 @@ where $\hat{r} = 2\hat{n}(\hat{n} \cdot \hat{l}) - \hat{l}$ is the reflected lig
 
 - **Discard order**: the z-buffer is updated only *after* the fragment returns a color, so discarded pixels don't pollute depth.
 - **Specular shortcut**: using $r \cdot v \approx r_z$ assumes the camera looks down world $-z$. True only when the eye is on the z-axis — otherwise need to compute view direction per pixel or move lighting to camera space.
+
+> Later refined to **Blinn-Phong** ($\hat{n} \cdot \hat{h}$ where $\hat{h} = \widehat{\hat{l} + \hat{v}}$) with a true per-pixel view direction interpolated from a `worldPositions` varying.
+
+## Lesson 7: More Data!
+
+Three new types of texture, all parsed from `.tga` files:
+
+| Texture | Suffix | Purpose |
+|---------|--------|---------|
+| Diffuse | `_diffuse.tga` | Per-pixel surface color |
+| Normal | `_nm.tga` | Per-pixel normal (RGB → xyz) |
+| Specular | `_spec.tga` | Per-pixel specular intensity |
+
+This lesson covers the **diffuse** map; normal and specular come later.
+
+**Model extension** — parse `vt u v` lines into a `texCoords_` buffer and store the texture index in each face corner. `FaceCorner` is now `{vertIdx, texIdx, normalIdx}`, matching the OBJ `v/t/n` format exactly.
+
+**UV varying** — texture coordinates are a third per-vertex value (after normals and world positions). Stored as columns of a `Mat<float, 2, 3>`; `texCoords * bary` interpolates to a `Vec2f` UV in the fragment shader. Same column-per-vertex pattern lets matrix-vector multiply do the barycentric blend in one operation.
+
+**Sampling** — convert `[0, 1]²` UV → pixel coords. Watch the v-axis convention: TGA images are stored top-down internally after `flipVertically()` on load, but OBJ UVs use bottom-left origin, so `v` flips when indexing:
+```cpp
+const int y = std::clamp(static_cast<int>((1.f - uv.y()) * h), 0, h - 1);
+```
+
+**Modulation** — sampled texel color is multiplied per-channel by the Blinn-Phong lighting factor. Texture provides surface *albedo*; lighting modulates it.
+
+**Architecture refactor** — `IShader` and concrete shaders moved out of `main.cpp` into a dedicated `Shader.{hpp,cpp}` module. Two implementations:
+
+- `BlinnPhongShader` — single base color, no texture
+- `BlinnPhongTexturedShader` — diffuse map sample modulating the lighting
+
+Switching between them is a one-line change in `main()` — the rasterizer is unaware. That's the payoff of the `IShader` polymorphism.
+
+**Range-based iteration** — `IShader` exposes a public `triangles()` view (built on `std::views::iota | std::views::transform`) that lazily produces post-vertex-processing triangles. The face count is supplied via a private virtual `faceCount()` (NVI / Template Method pattern). Caller becomes:
+```cpp
+for (const auto &tri : shader.triangles()) {
+    rasterize(tri, shader, zbuffer, image);
+}
+```
+
+- **`fragment()` no longer returns `std::optional`** — neither shader uses discard; YAGNI applied. Add it back when alpha cutout / masking arrives.
