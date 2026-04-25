@@ -27,6 +27,11 @@ Model::Model(const char *filename) {
             Vec3f n;
             ss >> n.x() >> n.y() >> n.z();
             normals_.push_back(n);
+        } else if (line.starts_with("vt ")) {
+            ss >> c >> c; // consume 'v' 't'
+            Vec2f t;
+            ss >> t.x() >> t.y(); // ignore optional 3rd (w) component
+            texCoords_.push_back(t);
         } else if (line.starts_with("f ")) {
             ss >> c; // consume 'f'
 
@@ -40,7 +45,7 @@ Model::Model(const char *filename) {
                 if (cornerIdx >= 3) {
                     throw std::runtime_error("Only triangular faces are supported");
                 }
-                face[cornerIdx++] = {vidx - 1, nidx - 1};
+                face[cornerIdx++] = {vidx - 1, tidx - 1, nidx - 1};
             }
             if (cornerIdx != 3) {
                 throw std::runtime_error("Face must have exactly 3 corners");
