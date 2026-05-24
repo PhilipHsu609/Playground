@@ -1,15 +1,19 @@
 #include "tinyrenderer/Model.hpp"
 
+#include <fmt/core.h>
+#include <fmt/std.h>
+
 #include <array>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
-Model::Model(const char *filename) {
+Model::Model(const std::filesystem::path &filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
-        throw std::runtime_error("Failed to open file");
+        throw std::runtime_error(fmt::format("Failed to open file: {}", filename));
     }
 
     std::string line;

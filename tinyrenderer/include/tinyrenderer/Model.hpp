@@ -4,11 +4,12 @@
 
 #include <array>
 #include <cstddef>
+#include <filesystem>
 #include <vector>
 
 class Model {
   public:
-    explicit Model(const char *filename);
+    explicit Model(const std::filesystem::path &filename);
 
     [[nodiscard]] size_t nverts() const { return verts_.size(); }
     [[nodiscard]] size_t nnormals() const { return normals_.size(); }

@@ -148,7 +148,7 @@ int main() try {
         image.flipVertically();
 
         const std::string filename = fmt::format("frames/frame_{:03d}.png", i);
-        image.savePng(filename.c_str());
+        image.savePng(filename);
         fmt::print("frame {}/{}\n", i + 1, numFrames);
     }
 

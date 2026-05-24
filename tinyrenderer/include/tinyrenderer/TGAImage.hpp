@@ -5,6 +5,7 @@
 #include <concepts>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <vector>
 
@@ -79,10 +80,10 @@ struct TGAColor {
 
 class TGAImage {
   public:
-    explicit TGAImage(const char *filename);
+    explicit TGAImage(const std::filesystem::path &filename);
     TGAImage(std::uint16_t width, std::uint16_t height, std::uint8_t bytespp);
-    void save(const char *filename) const;
-    void savePng(const char *filename) const;
+    void save(const std::filesystem::path &filename) const;
+    void savePng(const std::filesystem::path &filename) const;
 
     void flipVertically();
     void flipHorizontally();
@@ -120,8 +121,8 @@ class TGAImage {
     enum Format { GRAYSCALE = 1, RGB = 3, RGBA = 4 };
 
   private:
-    void loadTgaData(const char *filename);
-    void writeTgaData(const char *filename, bool rle = true) const;
+    void loadTgaData(const std::filesystem::path &filename);
+    void writeTgaData(const std::filesystem::path &filename, bool rle = true) const;
     void loadRleData(std::ifstream &file);
     void writeRleData(std::ofstream &file) const;
 

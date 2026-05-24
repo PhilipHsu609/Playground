@@ -4,23 +4,27 @@
 #include "stb_image_write.h"
 
 #include <fmt/core.h>
+#include <fmt/std.h>
 
 #include <algorithm>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-TGAImage::TGAImage(const char *filename) { loadTgaData(filename); }
+TGAImage::TGAImage(const std::filesystem::path &filename) { loadTgaData(filename); }
 
 TGAImage::TGAImage(std::uint16_t width, std::uint16_t height, std::uint8_t bytespp)
     : width_(width), height_(height), bytespp_(bytespp),
       data_(static_cast<size_t>(width) * height * bytespp) {}
 
-void TGAImage::save(const char *filename) const { writeTgaData(filename); }
+void TGAImage::save(const std::filesystem::path &filename) const {
+    writeTgaData(filename);
+}
 
-void TGAImage::savePng(const char *filename) const {
+void TGAImage::savePng(const std::filesystem::path &filename) const {
     // Internal byte order is B, G, R(, A) (see TGAColor::toArgb + memcpy in
     // set), but PNG expects R, G, B(, A); swap channels 0 and 2 per pixel.
     std::vector<std::uint8_t> rgb(static_cast<size_t>(width_) * height_ * bytespp_);
@@ -34,8 +38,9 @@ void TGAImage::savePng(const char *filename) const {
         }
     }
     const int stride = static_cast<int>(width_) * bytespp_;
-    if (stbi_write_png(filename, width_, height_, bytespp_, rgb.data(), stride) == 0) {
-        throw std::runtime_error(std::string("stbi_write_png failed: ") + filename);
+    if (stbi_write_png(filename.string().c_str(), width_, height_, bytespp_, rgb.data(),
+                       stride) == 0) {
+        throw std::runtime_error(fmt::format("stbi_write_png failed: {}", filename));
     }
 }
 
@@ -75,7 +80,7 @@ void TGAImage::flipHorizontally() {
 }
 
 // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
-void TGAImage::loadTgaData(const char *filename) {
+void TGAImage::loadTgaData(const std::filesystem::path &filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error(fmt::format("Failed to open file: {}", filename));
@@ -120,7 +125,7 @@ void TGAImage::loadTgaData(const char *filename) {
                bytespp_ * 8);
 }
 
-void TGAImage::writeTgaData(const char *filename, bool rle) const {
+void TGAImage::writeTgaData(const std::filesystem::path &filename, bool rle) const {
     std::ofstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error(fmt::format("Failed to open file: {}", filename));
