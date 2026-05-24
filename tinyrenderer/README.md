@@ -139,12 +139,9 @@ const int y = std::clamp(static_cast<int>((1.f - uv.y()) * h), 0, h - 1);
 
 **Modulation** — sampled texel color is multiplied per-channel by the Blinn-Phong lighting factor. Texture provides surface *albedo*; lighting modulates it.
 
-**Architecture refactor** — `IShader` and concrete shaders moved out of `main.cpp` into a dedicated `Shader.{hpp,cpp}` module. Two implementations:
+**Architecture refactor** — `IShader` and concrete shaders moved out of `main.cpp` into a dedicated `Shader.{hpp,cpp}` module. A single `BlinnPhongShader` is parameterized by a `Material` struct holding `baseColor`, `shininess`, and optional `diffuse`/`glow`/`specular`/`normalMap` textures. The fragment branches on which maps are present; untextured surfaces just leave the optionals empty.
 
-- `BlinnPhongShader` — single base color, no texture
-- `BlinnPhongTexturedShader` — diffuse map sample modulating the lighting
-
-Switching between them is a one-line change in `main()` — the rasterizer is unaware. That's the payoff of the `IShader` polymorphism.
+This mirrors how production renderers separate the shading *model* from the surface *description* — swapping a textured asset for a solid color is a Material change, not a shader change.
 
 **Range-based iteration** — `IShader` exposes a public `triangles()` view (built on `std::views::iota | std::views::transform`) that lazily produces post-vertex-processing triangles. The face count is supplied via a private virtual `faceCount()` (NVI / Template Method pattern). Caller becomes:
 ```cpp
