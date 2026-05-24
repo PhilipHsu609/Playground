@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Vector.hpp"
+#include "tinyrenderer/Vector.hpp"
 
 #include <array>
 #include <concepts>

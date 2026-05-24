@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Drawer.hpp"
-#include "Matrix.hpp"
-#include "Model.hpp"
-#include "TGAImage.hpp"
-#include "Vector.hpp"
+#include "tinyrenderer/Drawer.hpp"
+#include "tinyrenderer/Matrix.hpp"
+#include "tinyrenderer/Model.hpp"
+#include "tinyrenderer/TGAImage.hpp"
+#include "tinyrenderer/Vector.hpp"
 
 #include <cstddef>
 #include <optional>
