@@ -40,14 +40,14 @@ auto viewMatrix(const Camera &cam) {
 
     Mat4f result;
     for (size_t i = 0; i < 3; i++) {
-        result(0, i) = x[i]; // row 0 = vector x
-        result(1, i) = y[i]; // row 1 = vector y
-        result(2, i) = z[i]; // row 2 = vector z
+        result[0, i] = x[i]; // row 0 = vector x
+        result[1, i] = y[i]; // row 1 = vector y
+        result[2, i] = z[i]; // row 2 = vector z
     }
-    result(0, 3) = -dot(x, cam.eye);
-    result(1, 3) = -dot(y, cam.eye);
-    result(2, 3) = -dot(z, cam.eye);
-    result(3, 3) = 1.f;
+    result[0, 3] = -dot(x, cam.eye);
+    result[1, 3] = -dot(y, cam.eye);
+    result[2, 3] = -dot(z, cam.eye);
+    result[3, 3] = 1.f;
 
     return result;
 }
@@ -59,11 +59,11 @@ auto projectionMatrix(const Camera &cam) {
     const float rad = cam.fovy * std::numbers::pi_v<float> / 180.f;
     const float f = 1.f / std::tan(rad / 2.f);
     Mat4f result;
-    result(0, 0) = f / cam.aspect;
-    result(1, 1) = f;
-    result(2, 2) = (cam.farPlane + cam.nearPlane) / (cam.nearPlane - cam.farPlane);
-    result(2, 3) = (2.f * cam.farPlane * cam.nearPlane) / (cam.nearPlane - cam.farPlane);
-    result(3, 2) = -1.f;
+    result[0, 0] = f / cam.aspect;
+    result[1, 1] = f;
+    result[2, 2] = (cam.farPlane + cam.nearPlane) / (cam.nearPlane - cam.farPlane);
+    result[2, 3] = (2.f * cam.farPlane * cam.nearPlane) / (cam.nearPlane - cam.farPlane);
+    result[3, 2] = -1.f;
     return result;
 }
 
@@ -72,12 +72,12 @@ auto projectionMatrix(const Camera &cam) {
  */
 auto viewportMatrix(float w, float h) {
     Mat4f result;
-    result(0, 0) = w / 2.f;
-    result(1, 1) = h / 2.f;
-    result(2, 2) = 1.f;
-    result(0, 3) = w / 2.f;
-    result(1, 3) = h / 2.f;
-    result(3, 3) = 1.f;
+    result[0, 0] = w / 2.f;
+    result[1, 1] = h / 2.f;
+    result[2, 2] = 1.f;
+    result[0, 3] = w / 2.f;
+    result[1, 3] = h / 2.f;
+    result[3, 3] = 1.f;
     return result;
 }
 

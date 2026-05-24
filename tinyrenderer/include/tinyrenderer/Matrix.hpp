@@ -33,9 +33,8 @@ class Mat {
         }
     }
 
-    constexpr T &operator()(size_t row, size_t col) { return data_[row * C + col]; }
-    constexpr const T &operator()(size_t row, size_t col) const {
-        return data_[row * C + col];
+    [[nodiscard]] constexpr auto &operator[](this auto &self, size_t row, size_t col) {
+        return self.data_[row * C + col];
     }
 
     // matrix multiply: Mat<R, C> * Mat<C, K> -> Mat<R, K>
@@ -46,9 +45,9 @@ class Mat {
             for (size_t j = 0; j < K; ++j) {
                 T sum = T(0);
                 for (size_t k = 0; k < C; ++k) {
-                    sum += (*this)(i, k) * other(k, j);
+                    sum += (*this)[i, k] * other[k, j];
                 }
-                result(i, j) = sum;
+                result[i, j] = sum;
             }
         }
         return result;
@@ -60,7 +59,7 @@ class Mat {
         for (size_t i = 0; i < R; ++i) {
             T sum = T(0);
             for (size_t j = 0; j < C; ++j) {
-                sum += (*this)(i, j) * vec[j];
+                sum += (*this)[i, j] * vec[j];
             }
             result[i] = sum;
         }
@@ -72,7 +71,7 @@ class Mat {
     {
         Mat result;
         for (size_t i = 0; i < R; ++i) {
-            result(i, i) = T(1);
+            result[i, i] = T(1);
         }
         return result;
     }
@@ -81,7 +80,7 @@ class Mat {
         Mat<T, C, R> result;
         for (size_t i = 0; i < R; ++i) {
             for (size_t j = 0; j < C; ++j) {
-                result(j, i) = (*this)(i, j);
+                result[j, i] = (*this)[i, j];
             }
         }
         return result;
@@ -92,10 +91,10 @@ class Mat {
         requires(R == 2 && C == 2 && std::floating_point<T>)
     {
         const T invDet =
-            T(1) / ((*this)(0, 0) * (*this)(1, 1) - (*this)(0, 1) * (*this)(1, 0));
+            T(1) / ((*this)[0, 0] * (*this)[1, 1] - (*this)[0, 1] * (*this)[1, 0]);
         return Mat{
-            {(*this)(1, 1) * invDet, -(*this)(0, 1) * invDet},
-            {-(*this)(1, 0) * invDet, (*this)(0, 0) * invDet},
+            {(*this)[1, 1] * invDet, -(*this)[0, 1] * invDet},
+            {-(*this)[1, 0] * invDet, (*this)[0, 0] * invDet},
         };
     }
 };

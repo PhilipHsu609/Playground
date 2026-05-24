@@ -43,11 +43,11 @@ Vec3f BlinnPhongShader::vertex(size_t faceIdx, size_t cornerIdx) {
     const auto &n = model_.normal(faceIdx, cornerIdx);
     const auto &uv = model_.texCoord(faceIdx, cornerIdx);
     for (size_t i = 0; i < 3; i++) {
-        normals_(i, cornerIdx) = n[i];
-        worldPositions_(i, cornerIdx) = v[i];
+        normals_[i, cornerIdx] = n[i];
+        worldPositions_[i, cornerIdx] = v[i];
     }
     for (size_t i = 0; i < 2; i++) {
-        texCoords_(i, cornerIdx) = uv[i];
+        texCoords_[i, cornerIdx] = uv[i];
     }
     return project(v, mvp_, vp_);
 }
@@ -74,16 +74,16 @@ TGAColor BlinnPhongShader::fragment(const Vec3f &bary) const {
         Vec3f e1;
         Vec3f e2;
         for (size_t i = 0; i < 3; i++) {
-            e1[i] = worldPositions_(i, 1) - worldPositions_(i, 0);
-            e2[i] = worldPositions_(i, 2) - worldPositions_(i, 0);
+            e1[i] = worldPositions_[i, 1] - worldPositions_[i, 0];
+            e2[i] = worldPositions_[i, 2] - worldPositions_[i, 0];
         }
         const Mat<float, 2, 2> uvMat{
-            {texCoords_(0, 1) - texCoords_(0, 0), texCoords_(0, 2) - texCoords_(0, 0)},
-            {texCoords_(1, 1) - texCoords_(1, 0), texCoords_(1, 2) - texCoords_(1, 0)},
+            {texCoords_[0, 1] - texCoords_[0, 0], texCoords_[0, 2] - texCoords_[0, 0]},
+            {texCoords_[1, 1] - texCoords_[1, 0], texCoords_[1, 2] - texCoords_[1, 0]},
         };
         const auto uvInv = uvMat.inverse();
-        const Vec3f T = (e1 * uvInv(0, 0) + e2 * uvInv(1, 0)).normalize();
-        const Vec3f B = (e1 * uvInv(0, 1) + e2 * uvInv(1, 1)).normalize();
+        const Vec3f T = (e1 * uvInv[0, 0] + e2 * uvInv[1, 0]).normalize();
+        const Vec3f B = (e1 * uvInv[0, 1] + e2 * uvInv[1, 1]).normalize();
 
         const Vec3f t = sampleNormal(*material_.normalMap, uv);
         n = (T * t.x() + B * t.y() + n * t.z()).normalize();
