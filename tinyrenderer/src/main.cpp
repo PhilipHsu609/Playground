@@ -128,10 +128,10 @@ int main() try {
         // shader before rendering. The shader's heavy state (model + texture
         // pixels) stays alive across frames, so this is cheap.
         const float theta = t * 2.f * std::numbers::pi_v<float>;
-        constexpr float orbitRadius = 3.f;
-        cam.eye = Vec3f(orbitRadius * std::sin(theta), 0.f, orbitRadius * std::cos(theta));
+        lightDir = Vec3f(std::cos(theta), 0.f, std::sin(theta));
         // Examples (uncomment / mix to taste):
-        //   lightDir = Vec3f(std::cos(theta), 0.f, std::sin(theta));   // orbit light
+        //   constexpr float orbitRadius = 3.f;
+        //   cam.eye = Vec3f(orbitRadius * std::sin(theta), 0.f, orbitRadius * std::cos(theta));
         //   shader.material().shininess = 5.f + 95.f * t;              // shininess sweep
         //   shader.material().normalMap = (i < numFrames / 2) ? shader.material().normalMap : std::nullopt;
         // ====== end animation block ======
