@@ -3,6 +3,7 @@
 #include "Vector.hpp"
 
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <initializer_list>
 #include <stdexcept>
@@ -84,6 +85,18 @@ class Mat {
             }
         }
         return result;
+    }
+
+    // Closed-form 2x2 inverse:  [[a b]; [c d]]^-1 = (1/(ad-bc)) * [[d -b]; [-c a]].
+    [[nodiscard]] constexpr Mat inverse() const
+        requires(R == 2 && C == 2 && std::floating_point<T>)
+    {
+        const T invDet =
+            T(1) / ((*this)(0, 0) * (*this)(1, 1) - (*this)(0, 1) * (*this)(1, 0));
+        return Mat{
+            {(*this)(1, 1) * invDet, -(*this)(0, 1) * invDet},
+            {-(*this)(1, 0) * invDet, (*this)(0, 0) * invDet},
+        };
     }
 };
 

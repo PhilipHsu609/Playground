@@ -88,16 +88,17 @@ int main() try {
     Model model("obj/diablo3_pose/diablo3_pose.obj");
     Material material{
         .baseColor = TGAColor(255, 255, 255),
+        .shininess = 5.f,
         .diffuse = TGAImage("obj/diablo3_pose/diablo3_pose_diffuse.tga"),
         .glow = TGAImage("obj/diablo3_pose/diablo3_pose_glow.tga"),
         .specular = std::nullopt,
-        .normalMap = std::nullopt,
+        .normalMap = TGAImage("obj/diablo3_pose/diablo3_pose_nm_tangent.tga"),
     };
 
     fmt::print("nverts: {}\n", model.nverts());
     fmt::print("nfaces: {}\n", model.nfaces());
 
-    constexpr Vec3f lightDir(0.f, 0.f, 1.f);
+    constexpr Vec3f lightDir(1.f, 0.f, 0.f);
     const Camera cam{
         .eye = Vec3f(0.f, 0.f, 3.f),
         .center = Vec3f(0.f, 0.f, 0.f),

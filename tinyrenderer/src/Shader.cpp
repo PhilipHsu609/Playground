@@ -23,6 +23,14 @@ TGAColor sample(const TGAImage &tex, Vec2f uv) {
     return tex.get(x, y);
 }
 
+// Decode an RGB texel as a tangent-space normal: [0, 255] -> [-1, 1] per channel.
+Vec3f sampleNormal(const TGAImage &tex, Vec2f uv) {
+    const TGAColor c = sample(tex, uv);
+    return Vec3f(static_cast<float>(c.r) / 127.5f - 1.f,
+                 static_cast<float>(c.g) / 127.5f - 1.f,
+                 static_cast<float>(c.b) / 127.5f - 1.f);
+}
+
 } // namespace
 
 BlinnPhongShader::BlinnPhongShader(Model model, Material material, Mat4f mvp, Mat4f vp,
@@ -52,11 +60,36 @@ float BlinnPhongShader::blinnPhongFactor(const Vec3f &n, const Vec3f &halfway) c
 }
 
 TGAColor BlinnPhongShader::fragment(const Vec3f &bary) const {
-    const Vec3f n = (normals_ * bary).normalize();
+    Vec3f n = (normals_ * bary).normalize();
     const Vec3f worldPos = worldPositions_ * bary;
     const Vec3f viewDir = (eye_ - worldPos).normalize();
-    const Vec3f halfway = (lightDir_ + viewDir).normalize();
     const Vec2f uv = texCoords_ * bary;
+
+    // Tangent-space normal mapping: sample a per-pixel surface-local normal
+    // and rotate it into world space via the TBN basis derived from the
+    // triangle's world-space edges and UV deltas:
+    //   [T B] = E * U^-1
+    // with E = [e1 | e2] (3x2 edge matrix) and U = [du1 du2; dv1 dv2].
+    if (material_.normalMap) {
+        Vec3f e1;
+        Vec3f e2;
+        for (size_t i = 0; i < 3; i++) {
+            e1[i] = worldPositions_(i, 1) - worldPositions_(i, 0);
+            e2[i] = worldPositions_(i, 2) - worldPositions_(i, 0);
+        }
+        const Mat<float, 2, 2> uvMat{
+            {texCoords_(0, 1) - texCoords_(0, 0), texCoords_(0, 2) - texCoords_(0, 0)},
+            {texCoords_(1, 1) - texCoords_(1, 0), texCoords_(1, 2) - texCoords_(1, 0)},
+        };
+        const auto uvInv = uvMat.inverse();
+        const Vec3f T = (e1 * uvInv(0, 0) + e2 * uvInv(1, 0)).normalize();
+        const Vec3f B = (e1 * uvInv(0, 1) + e2 * uvInv(1, 1)).normalize();
+
+        const Vec3f t = sampleNormal(*material_.normalMap, uv);
+        n = (T * t.x() + B * t.y() + n * t.z()).normalize();
+    }
+
+    const Vec3f halfway = (lightDir_ + viewDir).normalize();
 
     TGAColor albedo = material_.baseColor;
     if (material_.diffuse) {
@@ -64,7 +97,6 @@ TGAColor BlinnPhongShader::fragment(const Vec3f &bary) const {
     }
 
     TGAColor lit = albedo * blinnPhongFactor(n, halfway);
-
     if (material_.glow) {
         lit = lit + sample(*material_.glow, uv);
     }

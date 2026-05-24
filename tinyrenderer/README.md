@@ -151,3 +151,36 @@ for (const auto &tri : shader.triangles()) {
 ```
 
 - **`fragment()` no longer returns `std::optional`** — neither shader uses discard; YAGNI applied. Add it back when alpha cutout / masking arrives.
+
+## Lesson 8: Tangent Space Normal Mapping
+
+Per-pixel surface detail without adding geometry: a *normal map* texture encodes a tilted normal at every texel, fed into the lighting calculation. World-space normal maps bake the world directions into the texture (broken under any mesh rotation/animation). Tangent-space maps encode the normal in a **local frame attached to the surface** — same texture survives any pose.
+
+**The local frame (T, B, N)** at every point:
+- $\hat{n}$ — geometric normal at that point (from the mesh)
+- $\hat{T}$ — surface direction aligned with the texture's $+u$ axis
+- $\hat{B}$ — surface direction aligned with the texture's $+v$ axis
+
+Most texels in a tangent-space map are close to $(0, 0, 1)$ — "no deviation from the smooth surface" — so the map looks characteristically bluish-purple.
+
+**Deriving T and B from the UV map** — formally, T and B are the partial derivatives of the inverse parameterization:
+
+$$T = \frac{\partial \varphi^{-1}}{\partial u}, \quad B = \frac{\partial \varphi^{-1}}{\partial v}$$
+
+Approximating with triangle edges: let $E = [e_1 \mid e_2]$ be the world-space edges ($3\times2$), $U = [\delta_1 \mid \delta_2]$ the UV deltas ($2\times2$). Then
+
+$$[T \mid B] = E \cdot U^{-1}$$
+
+falls straight out by inverting "$M E = U$" — the mapping that takes world edges to UV deltas should send T and B to the standard UV basis. Closed-form $U^{-1}$ inverse is plenty for a $2\times2$.
+
+**Bring the texel back to world space** — sample $t = (t_x, t_y, t_z)$ from the map, decode each channel from $[0, 255]$ to $[-1, 1]$, and:
+
+$$\hat{n}_{world} = \widehat{t_x \hat{T} + t_y \hat{B} + t_z \hat{n}}$$
+
+This is the TBN change-of-basis: tangent-space → world-space. Replace the geometric $n$ in the lighting calculation with $\hat{n}_{world}$ before computing Blinn-Phong.
+
+- **Differential geometry in disguise** — the UV map is a *chart* of the surface; $(T, B)$ is the *coordinate basis* of the tangent plane, pushed forward to world coordinates; TBN is the *Jacobian of the inverse chart* augmented by the surface normal. The graphics formula is just the chart-transition rule.
+- **T and B aren't generally orthogonal** — they reflect any shear or stretch in the UV unwrap. By *Gauss's Theorema Egregium*, any non-developable surface (sphere, organic mesh) cannot be UV-unwrapped to ℝ² without some distortion. On Diablo's mesh, mean angle between T and B comes out around 78°, with some degenerate triangles. The render still looks correct because high-frequency bump detail averages out the small basis errors.
+- **Must normalize T and B** — the raw formula scales them by the local UV stretch, so the texel's intended direction gets overwhelmed unless we re-normalize. The artist baked the map assuming $|T| = |B| = 1$.
+- **Production fixup** — engines standardize on *MikkTSpace*, a specific tangent-computation algorithm shared between texture bakers (Substance, Blender, Marmoset) and renderers (Unreal, Unity, glTF). Skipping it (as we do) leaves small drift but is fine for learning.
+- **2×2 inverse added to `Mat`** — closed-form $\begin{pmatrix}a & b \\\ c & d\end{pmatrix}^{-1} = \frac{1}{ad-bc}\begin{pmatrix}d & -b \\\ -c & a\end{pmatrix}$, gated by `requires(R == 2 && C == 2)`.
