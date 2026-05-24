@@ -7,6 +7,7 @@
 #include "Vector.hpp"
 
 #include <cstddef>
+#include <optional>
 #include <ranges>
 
 /**
@@ -30,8 +31,6 @@ struct IShader {
     [[nodiscard]] virtual TGAColor fragment(const Vec3f &bary) const = 0;
 
     /// Lazy view over the model's triangles after vertex processing.
-    /// Each dereference invokes vertex() three times to populate varyings,
-    /// then yields the resulting screen-space Triangle.
     [[nodiscard]] auto triangles() {
         return std::views::iota(size_t{0}, faceCount()) |
                std::views::transform([this](size_t i) {
@@ -44,37 +43,30 @@ struct IShader {
 };
 
 /**
- * @brief Blinn-Phong shading with a single base color (no diffuse map).
+ * @brief Surface description: base color modulated by optional texture maps.
+ *
+ * The final albedo is `baseColor * diffuseMap(uv)` where missing maps fall
+ * back to their identity (white texture, no glow, no normal-map override).
  */
-class BlinnPhongShader : public IShader {
-  public:
-    BlinnPhongShader(Model model, Mat4f mvp, Mat4f vp, Vec3f lightDir, Vec3f eye);
-
-    [[nodiscard]] Vec3f vertex(size_t faceIdx, size_t cornerIdx) override;
-    [[nodiscard]] TGAColor fragment(const Vec3f &bary) const override;
-
-  private:
-    [[nodiscard]] size_t faceCount() const override { return model_.nfaces(); }
-
-    // uniforms
-    Model model_;
-    Mat4f mvp_, vp_;
-    Vec3f lightDir_;
-    Vec3f eye_;
-    TGAColor color_ = TGAColor(255, 255, 255);
-
-    // varyings (one column per triangle vertex)
-    Mat3f normals_;
-    Mat3f worldPositions_;
+struct Material {
+    TGAColor baseColor = TGAColor(255, 255, 255);
+    float shininess = 50.f; // Blinn-Phong specular exponent (high = tight highlight)
+    std::optional<TGAImage> diffuse;
+    std::optional<TGAImage> glow;
+    std::optional<TGAImage> specular;
+    std::optional<TGAImage> normalMap;
 };
 
 /**
- * @brief Blinn-Phong shading modulated by a per-pixel diffuse texture sample.
+ * @brief Blinn-Phong shading parameterized by a Material.
+ *
+ * Handles solid-color, textured, glowing, etc. surfaces uniformly. Fragment
+ * branches on which maps the Material carries.
  */
-class BlinnPhongTexturedShader : public IShader {
+class BlinnPhongShader : public IShader {
   public:
-    BlinnPhongTexturedShader(Model model, TGAImage diffuseMap, Mat4f mvp, Mat4f vp,
-                             Vec3f lightDir, Vec3f eye);
+    BlinnPhongShader(Model model, Material material, Mat4f mvp, Mat4f vp, Vec3f lightDir,
+                     Vec3f eye);
 
     [[nodiscard]] Vec3f vertex(size_t faceIdx, size_t cornerIdx) override;
     [[nodiscard]] TGAColor fragment(const Vec3f &bary) const override;
@@ -82,9 +74,13 @@ class BlinnPhongTexturedShader : public IShader {
   private:
     [[nodiscard]] size_t faceCount() const override { return model_.nfaces(); }
 
+    // Blinn-Phong lighting intensity at a shaded point. Returns a factor in
+    // [0, 1] that modulates the surface albedo.
+    [[nodiscard]] float blinnPhongFactor(const Vec3f &n, const Vec3f &halfway) const;
+
     // uniforms
     Model model_;
-    TGAImage diffuseMap_;
+    Material material_;
     Mat4f mvp_, vp_;
     Vec3f lightDir_;
     Vec3f eye_;

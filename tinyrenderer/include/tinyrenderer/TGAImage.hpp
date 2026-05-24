@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <concepts>
 #include <cstdint>
@@ -41,6 +42,38 @@ struct TGAColor {
 
     [[nodiscard]] constexpr std::uint32_t toArgb() const {
         return static_cast<std::uint32_t>((a << 24) | (r << 16) | (g << 8) | b);
+    }
+
+    // Channel-wise multiply, normalizing each channel to [0, 1] internally.
+    // e.g. white * red = red; gray50 * white = gray50.
+    [[nodiscard]] constexpr TGAColor operator*(const TGAColor &other) const {
+        constexpr float inv = 1.f / 255.f;
+        return {
+            static_cast<std::uint8_t>(static_cast<float>(r) *
+                                      static_cast<float>(other.r) * inv),
+            static_cast<std::uint8_t>(static_cast<float>(g) *
+                                      static_cast<float>(other.g) * inv),
+            static_cast<std::uint8_t>(static_cast<float>(b) *
+                                      static_cast<float>(other.b) * inv),
+        };
+    }
+
+    // Scale each channel by a float factor; useful for lighting modulation.
+    [[nodiscard]] constexpr TGAColor operator*(float factor) const {
+        return {
+            static_cast<std::uint8_t>(static_cast<float>(r) * factor),
+            static_cast<std::uint8_t>(static_cast<float>(g) * factor),
+            static_cast<std::uint8_t>(static_cast<float>(b) * factor),
+        };
+    }
+
+    // Channel-wise saturating add (clamped to 255).
+    [[nodiscard]] constexpr TGAColor operator+(const TGAColor &other) const {
+        return {
+            static_cast<std::uint8_t>(std::min(255, r + other.r)),
+            static_cast<std::uint8_t>(std::min(255, g + other.g)),
+            static_cast<std::uint8_t>(std::min(255, b + other.b)),
+        };
     }
 };
 

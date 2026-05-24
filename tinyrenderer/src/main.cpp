@@ -11,6 +11,7 @@
 #include <exception>
 #include <limits>
 #include <numbers>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -83,7 +84,15 @@ int main() try {
     std::vector<float> zbuffer(width * height, std::numeric_limits<float>::max());
 
     Model model("obj/diablo3_pose/diablo3_pose.obj");
-    TGAImage diffuseMap("obj/diablo3_pose/diablo3_pose_diffuse.tga");
+    Material material{
+        .baseColor = TGAColor(255, 255, 255),
+        // .diffuse = TGAImage("obj/diablo3_pose/diablo3_pose_diffuse.tga"),
+        .diffuse = std::nullopt,
+        // .glow = TGAImage("obj/diablo3_pose/diablo3_pose_glow.tga"),
+        .glow = std::nullopt,
+        .specular = std::nullopt,
+        .normalMap = std::nullopt,
+    };
 
     fmt::print("nverts: {}\n", model.nverts());
     fmt::print("nfaces: {}\n", model.nfaces());
@@ -102,8 +111,8 @@ int main() try {
     const auto MVP = projectionMatrix(cam) * viewMatrix(cam);
     const auto VP = viewportMatrix(width, height);
 
-    BlinnPhongTexturedShader shader(std::move(model), std::move(diffuseMap), MVP, VP,
-                                    lightDir, cam.eye);
+    BlinnPhongShader shader(std::move(model), std::move(material), MVP, VP, lightDir,
+                            cam.eye);
 
     for (const auto &tri : shader.triangles()) {
         rasterize(tri, shader, zbuffer, image);
