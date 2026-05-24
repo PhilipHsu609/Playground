@@ -81,12 +81,14 @@ TGAColor BlinnPhongShader::fragment(const Vec3f &bary) const {
             {texCoords_[0, 1] - texCoords_[0, 0], texCoords_[0, 2] - texCoords_[0, 0]},
             {texCoords_[1, 1] - texCoords_[1, 0], texCoords_[1, 2] - texCoords_[1, 0]},
         };
-        const auto uvInv = uvMat.inverse();
-        const Vec3f T = (e1 * uvInv[0, 0] + e2 * uvInv[1, 0]).normalize();
-        const Vec3f B = (e1 * uvInv[0, 1] + e2 * uvInv[1, 1]).normalize();
-
-        const Vec3f t = sampleNormal(*material_.normalMap, uv);
-        n = (T * t.x() + B * t.y() + n * t.z()).normalize();
+        // Degenerate UV (two corners share a uv) gives a singular uvMat with
+        // no TBN basis; in that case keep the geometric normal `n` as-is.
+        if (const auto uvInv = uvMat.inverse()) {
+            const Vec3f T = (e1 * (*uvInv)[0, 0] + e2 * (*uvInv)[1, 0]).normalize();
+            const Vec3f B = (e1 * (*uvInv)[0, 1] + e2 * (*uvInv)[1, 1]).normalize();
+            const Vec3f t = sampleNormal(*material_.normalMap, uv);
+            n = (T * t.x() + B * t.y() + n * t.z()).normalize();
+        }
     }
 
     const Vec3f halfway = (lightDir_ + viewDir).normalize();

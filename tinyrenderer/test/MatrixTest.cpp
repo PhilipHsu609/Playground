@@ -78,3 +78,21 @@ TEST(Mat, WrongColumnCountThrows) {
                  std::invalid_argument);
     EXPECT_THROW((Mat<float, 2, 2>{{1.f}, {2.f}}), std::invalid_argument);
 }
+
+TEST(Mat, InverseRoundTrips) {
+    Mat<float, 2, 2> m{{4.f, 7.f}, {2.f, 6.f}};
+    const auto inv = m.inverse();
+    ASSERT_TRUE(inv.has_value());
+    const auto id = m * (*inv);
+    EXPECT_NEAR((id[0, 0]), 1.f, 1e-5f);
+    EXPECT_NEAR((id[1, 1]), 1.f, 1e-5f);
+    EXPECT_NEAR((id[0, 1]), 0.f, 1e-5f);
+    EXPECT_NEAR((id[1, 0]), 0.f, 1e-5f);
+}
+
+TEST(Mat, InverseOfSingularReturnsError) {
+    Mat<float, 2, 2> m{{1.f, 2.f}, {2.f, 4.f}}; // rows are linearly dependent
+    const auto inv = m.inverse();
+    ASSERT_FALSE(inv.has_value());
+    EXPECT_EQ(inv.error(), MatrixError::SINGULAR);
+}

@@ -5,8 +5,13 @@
 #include <array>
 #include <concepts>
 #include <cstddef>
+#include <expected>
 #include <initializer_list>
 #include <stdexcept>
+
+enum class MatrixError {
+    SINGULAR,
+};
 
 template <typename T, size_t R, size_t C>
 class Mat {
@@ -87,11 +92,17 @@ class Mat {
     }
 
     // Closed-form 2x2 inverse:  [[a b]; [c d]]^-1 = (1/(ad-bc)) * [[d -b]; [-c a]].
-    [[nodiscard]] constexpr Mat inverse() const
+    // Returns MatrixError::Singular when det == 0 so callers must decide how
+    // to handle degenerate input (skip, fall back, propagate) rather than
+    // silently producing inf/nan.
+    [[nodiscard]] constexpr std::expected<Mat, MatrixError> inverse() const
         requires(R == 2 && C == 2 && std::floating_point<T>)
     {
-        const T invDet =
-            T(1) / ((*this)[0, 0] * (*this)[1, 1] - (*this)[0, 1] * (*this)[1, 0]);
+        const T det = (*this)[0, 0] * (*this)[1, 1] - (*this)[0, 1] * (*this)[1, 0];
+        if (det == T(0)) {
+            return std::unexpected(MatrixError::SINGULAR);
+        }
+        const T invDet = T(1) / det;
         return Mat{
             {(*this)[1, 1] * invDet, -(*this)[0, 1] * invDet},
             {-(*this)[1, 0] * invDet, (*this)[0, 0] * invDet},
