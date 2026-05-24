@@ -1,0 +1,28 @@
+// Project tasks. Documentation: https://zed.dev/docs/tasks
+//
+// Dispatches on the project owning the currently-open file: the first path
+// component of $ZED_RELATIVE_FILE (e.g. "tinyrenderer/src/main.cpp" -> "tinyrenderer").
+//
+// Splitting is done in $(cut ...) rather than ${VAR%%/*}: Zed's template parser
+// reads everything between `${` and `}` as one variable name, so it would
+// reject `${ZED_RELATIVE_FILE%%/*}` as an unknown variable. Inside $(...) Zed
+// only sees `$ZED_RELATIVE_FILE`, and the shell handles the rest.
+//
+// Only build/run are exposed; config/test/format/clean stay in the Makefile
+// for occasional terminal use.
+[
+    {
+        "label": "build",
+        "command": "make -C \"$(echo $ZED_RELATIVE_FILE | cut -d/ -f1)\" build",
+        "save": "all",
+        "reveal": "always",
+        "hide": "on_success"
+    },
+    {
+        "label": "run",
+        "command": "make -C \"$(echo $ZED_RELATIVE_FILE | cut -d/ -f1)\" run",
+        "save": "all",
+        "reveal": "always",
+        "hide": "on_success"
+    }
+]
