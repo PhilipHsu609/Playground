@@ -8,17 +8,11 @@ Walk through the reasoning when implementing.
 
 ## Projects
 
-`README.md` is the source of truth for project status and rotation. Briefly:
-
-- **`container/`** (C) — Linux container runtime from namespaces + cgroups + seccomp. Completed.
-- **`sELF/`** (C) — ELF binary format parser. Completed.
-- **`tinyrenderer/`** (C++23) — Software renderer following haqr.eu/tinyrenderer. Lessons 0–4 done; camera next.
-- **`interpreter/`** (C++23) — Monkey language from *Writing An Interpreter In Go*. Chapters 1–4 done (hash maps skipped). *Writing A Compiler In Go* is the planned next phase.
-
-Each project has its own `README.md` with progress notes and a `Makefile`. C++ projects
-(`interpreter/`, `tinyrenderer/`) use CMake-style targets: `make config`, `make build`,
-`make test`, `make clean`. C projects (`container/`, `sELF/`) use plain Makefiles:
-`make` and `make clean` (sELF also has `make test`).
+See top-level `README.md` for the project list and current status; each project
+has its own `README.md` with progress notes and a `Makefile`. C++ projects
+(`interpreter/`, `tinyrenderer/`) use CMake-style targets: `make config`,
+`make build`, `make test`, `make run`, `make clean`. C projects (`container/`,
+`sELF/`) use plain Makefiles: `make` and `make clean` (sELF also has `make test`).
 
 ## Gotchas
 
