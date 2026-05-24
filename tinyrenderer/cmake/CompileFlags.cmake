@@ -33,14 +33,6 @@ target_compile_options(project_compile_flags INTERFACE
     $<$<AND:$<CONFIG:RELEASE>,$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>>:-O3>
 )
 
-# Clang 18 still ships __cpp_concepts=201907L (the TS value) instead of the
-# final 202002L, which gates libstdc++ 13's <expected>. Clang fully supports
-# concepts, so spoofing the macro is safe and unblocks std::expected.
-target_compile_options(project_compile_flags INTERFACE
-    $<$<CXX_COMPILER_ID:Clang>:-Wno-builtin-macro-redefined>
-    $<$<CXX_COMPILER_ID:Clang>:-D__cpp_concepts=202002L>
-)
-
 # Platform-specific additional flags for GCC/Clang
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_compile_options(project_compile_flags INTERFACE
