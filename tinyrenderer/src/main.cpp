@@ -1,7 +1,6 @@
 #include "tinyrenderer/Drawer.hpp"
 #include "tinyrenderer/Matrix.hpp"
 #include "tinyrenderer/Model.hpp"
-#include "tinyrenderer/PngWriter.hpp"
 #include "tinyrenderer/Shader.hpp"
 #include "tinyrenderer/TGAImage.hpp"
 #include "tinyrenderer/Vector.hpp"
@@ -119,7 +118,7 @@ int main() try {
     }
 
     image.flipVertically();
-    writePng(image, "output.png");
+    image.savePng("output.png");
 
     return 0;
 } catch (const std::exception &e) {

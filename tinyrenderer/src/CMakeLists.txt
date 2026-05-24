@@ -8,7 +8,6 @@ target_sources(
     Drawer.cpp
     Model.cpp
     Shader.cpp
-    PngWriter.cpp
 )
 
 target_include_directories(

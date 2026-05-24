@@ -1,11 +1,15 @@
 #include "tinyrenderer/TGAImage.hpp"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 #include <fmt/core.h>
 
 #include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 TGAImage::TGAImage(const char *filename) { loadTgaData(filename); }
@@ -15,6 +19,25 @@ TGAImage::TGAImage(std::uint16_t width, std::uint16_t height, std::uint8_t bytes
       data_(static_cast<size_t>(width) * height * bytespp) {}
 
 void TGAImage::save(const char *filename) const { writeTgaData(filename); }
+
+void TGAImage::savePng(const char *filename) const {
+    // Internal byte order is B, G, R(, A) (see TGAColor::toArgb + memcpy in
+    // set), but PNG expects R, G, B(, A); swap channels 0 and 2 per pixel.
+    std::vector<std::uint8_t> rgb(static_cast<size_t>(width_) * height_ * bytespp_);
+    for (size_t i = 0; i < static_cast<size_t>(width_) * height_; ++i) {
+        const size_t base = i * bytespp_;
+        rgb[base + 0] = data_[base + 2];
+        rgb[base + 1] = data_[base + 1];
+        rgb[base + 2] = data_[base + 0];
+        if (bytespp_ == 4) {
+            rgb[base + 3] = data_[base + 3];
+        }
+    }
+    const int stride = static_cast<int>(width_) * bytespp_;
+    if (stbi_write_png(filename, width_, height_, bytespp_, rgb.data(), stride) == 0) {
+        throw std::runtime_error(std::string("stbi_write_png failed: ") + filename);
+    }
+}
 
 void TGAImage::flipVertically() {
     if (data_.empty()) {

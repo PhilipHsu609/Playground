@@ -82,6 +82,7 @@ class TGAImage {
     explicit TGAImage(const char *filename);
     TGAImage(std::uint16_t width, std::uint16_t height, std::uint8_t bytespp);
     void save(const char *filename) const;
+    void savePng(const char *filename) const;
 
     void flipVertically();
     void flipHorizontally();
@@ -115,7 +116,6 @@ class TGAImage {
     [[nodiscard]] std::uint16_t getHeight() const { return height_; }
     [[nodiscard]] std::uint8_t getBytespp() const { return bytespp_; }
     std::vector<std::uint8_t> &buffer() { return data_; }
-    [[nodiscard]] const std::vector<std::uint8_t> &buffer() const { return data_; }
 
     enum Format { GRAYSCALE = 1, RGB = 3, RGBA = 4 };
 
