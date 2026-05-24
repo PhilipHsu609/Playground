@@ -2,3 +2,7 @@
 /.vscode/
 /bin/
 /build/
+
+# Renderer outputs
+/output.tga
+/output.png

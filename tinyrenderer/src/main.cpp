@@ -8,7 +8,9 @@
 #include <fmt/core.h>
 
 #include <cmath>
+#include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <limits>
 #include <numbers>
 #include <optional>
@@ -86,10 +88,8 @@ int main() try {
     Model model("obj/diablo3_pose/diablo3_pose.obj");
     Material material{
         .baseColor = TGAColor(255, 255, 255),
-        // .diffuse = TGAImage("obj/diablo3_pose/diablo3_pose_diffuse.tga"),
-        .diffuse = std::nullopt,
-        // .glow = TGAImage("obj/diablo3_pose/diablo3_pose_glow.tga"),
-        .glow = std::nullopt,
+        .diffuse = TGAImage("obj/diablo3_pose/diablo3_pose_diffuse.tga"),
+        .glow = TGAImage("obj/diablo3_pose/diablo3_pose_glow.tga"),
         .specular = std::nullopt,
         .normalMap = std::nullopt,
     };
@@ -120,6 +120,14 @@ int main() try {
 
     image.flipVertically();
     image.save("output.tga");
+
+    // ImageMagick converts the TGA to a smaller PNG; remove the intermediate.
+    // NOLINTNEXTLINE(cert-env33-c, concurrency-mt-unsafe)
+    if (std::system("convert output.tga output.png") == 0) {
+        std::filesystem::remove("output.tga");
+    } else {
+        fmt::print(stderr, "warning: convert failed; keeping output.tga\n");
+    }
 
     return 0;
 } catch (const std::exception &e) {
