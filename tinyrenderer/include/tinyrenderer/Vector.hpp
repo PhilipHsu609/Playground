@@ -28,58 +28,32 @@ class Vec {
 
     constexpr void clear() { data_.fill(T(0)); }
 
-    template <std::integral U>
-    constexpr T &operator[](U i) {
-        return data_[static_cast<size_t>(i)];
+    [[nodiscard]] constexpr auto &operator[](this auto &self, std::integral auto i) {
+        return self.data_[static_cast<size_t>(i)];
     }
 
-    template <std::integral U>
-    constexpr const T &operator[](U i) const {
-        return data_[static_cast<size_t>(i)];
-    }
-
-    constexpr T &x()
+    [[nodiscard]] constexpr auto &x(this auto &self)
         requires(N >= 1)
     {
-        return data_[0];
-    }
-    [[nodiscard]] constexpr const T &x() const
-        requires(N >= 1)
-    {
-        return data_[0];
+        return self.data_[0];
     }
 
-    constexpr T &y()
+    [[nodiscard]] constexpr auto &y(this auto &self)
         requires(N >= 2)
     {
-        return data_[1];
-    }
-    [[nodiscard]] constexpr const T &y() const
-        requires(N >= 2)
-    {
-        return data_[1];
+        return self.data_[1];
     }
 
-    constexpr T &z()
+    [[nodiscard]] constexpr auto &z(this auto &self)
         requires(N >= 3)
     {
-        return data_[2];
-    }
-    [[nodiscard]] constexpr const T &z() const
-        requires(N >= 3)
-    {
-        return data_[2];
+        return self.data_[2];
     }
 
-    constexpr T &w()
+    [[nodiscard]] constexpr auto &w(this auto &self)
         requires(N >= 4)
     {
-        return data_[3];
-    }
-    [[nodiscard]] constexpr const T &w() const
-        requires(N >= 4)
-    {
-        return data_[3];
+        return self.data_[3];
     }
 
     constexpr Vec operator+(const Vec &v) const {
