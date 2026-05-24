@@ -6,7 +6,6 @@
 #include "tinyrenderer/Vector.hpp"
 
 #include <fmt/core.h>
-
 #include <fmt/format.h>
 
 #include <cmath>
@@ -29,6 +28,8 @@ struct Camera {
     float nearPlane = 0.1f;
     float farPlane = 100.f;
 };
+
+namespace {
 
 /**
  * @brief Computes the view (world-to-camera) matrix from a Camera.
@@ -81,6 +82,8 @@ auto viewportMatrix(float w, float h) {
     return result;
 }
 
+} // namespace
+
 int main() try {
     constexpr size_t width = 800;
     constexpr size_t height = 800;
@@ -102,7 +105,7 @@ int main() try {
 
     // Per-frame mutable state. Defaults below; the animation block inside the
     // loop overwrites whichever fields it wants each iteration.
-    Camera cam{
+    const Camera cam{
         .eye = Vec3f(0.f, 0.f, 3.f),
         .center = Vec3f(0.f, 0.f, 0.f),
         .up = Vec3f(0.f, 1.f, 0.f),
@@ -131,9 +134,10 @@ int main() try {
         lightDir = Vec3f(std::cos(theta), 0.f, std::sin(theta));
         // Examples (uncomment / mix to taste):
         //   constexpr float orbitRadius = 3.f;
-        //   cam.eye = Vec3f(orbitRadius * std::sin(theta), 0.f, orbitRadius * std::cos(theta));
-        //   shader.material().shininess = 5.f + 95.f * t;              // shininess sweep
-        //   shader.material().normalMap = (i < numFrames / 2) ? shader.material().normalMap : std::nullopt;
+        //   cam.eye = Vec3f(orbitRadius * std::sin(theta), 0.f, orbitRadius *
+        //   std::cos(theta)); shader.material().shininess = 5.f + 95.f * t; // shininess
+        //   sweep shader.material().normalMap = (i < numFrames / 2) ?
+        //   shader.material().normalMap : std::nullopt;
         // ====== end animation block ======
 
         shader.setMVP(projectionMatrix(cam) * viewMatrix(cam));
@@ -153,8 +157,8 @@ int main() try {
     }
 
     fmt::print("assembling GIF...\n");
-    const std::string gifCmd =
-        fmt::format("convert -delay {} -loop 0 frames/frame_*.png output.gif", frameDelay);
+    const std::string gifCmd = fmt::format(
+        "convert -delay {} -loop 0 frames/frame_*.png output.gif", frameDelay);
     // NOLINTNEXTLINE(cert-env33-c, concurrency-mt-unsafe)
     if (std::system(gifCmd.c_str()) != 0) {
         fmt::print(stderr,

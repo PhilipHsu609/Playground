@@ -28,11 +28,11 @@ BBox findBbox(const std::array<Vec2f, N> &pts) {
         maxY = std::max(maxY, pt.y());
     }
 
-    return BBox{
-        static_cast<int>(std::floor(minX)),
-        static_cast<int>(std::ceil(maxX)),
-        static_cast<int>(std::floor(minY)),
-        static_cast<int>(std::ceil(maxY)),
+    return {
+        .minX = static_cast<int>(std::floor(minX)),
+        .maxX = static_cast<int>(std::ceil(maxX)),
+        .minY = static_cast<int>(std::floor(minY)),
+        .maxY = static_cast<int>(std::ceil(maxY)),
     };
 }
 

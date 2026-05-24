@@ -69,7 +69,7 @@ void TGAImage::flipHorizontally() {
     std::uint8_t *start = data_.data();
 
     for (size_t i = 0; i < height_; ++i) {
-        for (size_t j = 0; j < width_ / 2; ++j) {
+        for (size_t j = 0; j < width_ / 2u; ++j) {
             const size_t index1 = i * stride + j * bytespp_;
             const size_t index2 = i * stride + (width_ - 1 - j) * bytespp_;
             for (size_t k = 0; k < bytespp_; ++k) {

@@ -49,7 +49,11 @@ Model::Model(const std::filesystem::path &filename) {
                 if (cornerIdx >= 3) {
                     throw std::runtime_error("Only triangular faces are supported");
                 }
-                face[cornerIdx++] = {vidx - 1, tidx - 1, nidx - 1};
+                face[cornerIdx++] = {
+                    .vertIdx = vidx - 1,
+                    .texIdx = tidx - 1,
+                    .normalIdx = nidx - 1,
+                };
             }
             if (cornerIdx != 3) {
                 throw std::runtime_error("Face must have exactly 3 corners");

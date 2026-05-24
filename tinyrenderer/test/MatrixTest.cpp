@@ -24,9 +24,9 @@ TEST(Mat, IdentityIsDiagonal) {
 }
 
 TEST(Mat, MatrixMultiplyIdentity) {
-    Mat<float, 2, 2> m{{1.f, 2.f}, {3.f, 4.f}};
-    auto id = Mat<float, 2, 2>::identity();
-    auto result = m * id;
+    const Mat<float, 2, 2> m{{1.f, 2.f}, {3.f, 4.f}};
+    const auto id = Mat<float, 2, 2>::identity();
+    const auto result = m * id;
     EXPECT_EQ((result[0, 0]), 1.f);
     EXPECT_EQ((result[0, 1]), 2.f);
     EXPECT_EQ((result[1, 0]), 3.f);
@@ -35,9 +35,9 @@ TEST(Mat, MatrixMultiplyIdentity) {
 
 TEST(Mat, MatrixMultiplyNonSquare) {
     // 2x3 * 3x2 = 2x2
-    Mat<float, 2, 3> a{{1.f, 2.f, 3.f}, {4.f, 5.f, 6.f}};
-    Mat<float, 3, 2> b{{7.f, 8.f}, {9.f, 10.f}, {11.f, 12.f}};
-    auto c = a * b;
+    const Mat<float, 2, 3> a{{1.f, 2.f, 3.f}, {4.f, 5.f, 6.f}};
+    const Mat<float, 3, 2> b{{7.f, 8.f}, {9.f, 10.f}, {11.f, 12.f}};
+    const auto c = a * b;
     EXPECT_EQ((c[0, 0]), 58.f);  // 1*7 + 2*9 + 3*11
     EXPECT_EQ((c[0, 1]), 64.f);  // 1*8 + 2*10 + 3*12
     EXPECT_EQ((c[1, 0]), 139.f); // 4*7 + 5*9 + 6*11
@@ -45,17 +45,17 @@ TEST(Mat, MatrixMultiplyNonSquare) {
 }
 
 TEST(Mat, MatrixVectorMultiplyIdentity) {
-    auto m = Mat<float, 3, 3>::identity();
-    Vec3f v(1.f, 2.f, 3.f);
-    Vec3f result = m * v;
+    const auto m = Mat<float, 3, 3>::identity();
+    const Vec3f v(1.f, 2.f, 3.f);
+    const Vec3f result = m * v;
     EXPECT_EQ(result, v);
 }
 
 TEST(Mat, MatrixVectorMultiply) {
     // rotation by 90 deg around z-axis: x -> y, y -> -x
-    Mat<float, 3, 3> m{{0.f, -1.f, 0.f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}};
-    Vec3f v(1.f, 0.f, 0.f);
-    Vec3f result = m * v;
+    const Mat<float, 3, 3> m{{0.f, -1.f, 0.f}, {1.f, 0.f, 0.f}, {0.f, 0.f, 1.f}};
+    const Vec3f v(1.f, 0.f, 0.f);
+    const Vec3f result = m * v;
     EXPECT_NEAR(result.x(), 0.f, 1e-6);
     EXPECT_NEAR(result.y(), 1.f, 1e-6);
     EXPECT_NEAR(result.z(), 0.f, 1e-6);
@@ -80,7 +80,7 @@ TEST(Mat, WrongColumnCountThrows) {
 }
 
 TEST(Mat, InverseRoundTrips) {
-    Mat<float, 2, 2> m{{4.f, 7.f}, {2.f, 6.f}};
+    const Mat<float, 2, 2> m{{4.f, 7.f}, {2.f, 6.f}};
     const auto inv = m.inverse();
     ASSERT_TRUE(inv.has_value());
     const auto id = m * (*inv);
@@ -91,7 +91,7 @@ TEST(Mat, InverseRoundTrips) {
 }
 
 TEST(Mat, InverseOfSingularReturnsError) {
-    Mat<float, 2, 2> m{{1.f, 2.f}, {2.f, 4.f}}; // rows are linearly dependent
+    const Mat<float, 2, 2> m{{1.f, 2.f}, {2.f, 4.f}}; // rows are linearly dependent
     const auto inv = m.inverse();
     ASSERT_FALSE(inv.has_value());
     EXPECT_EQ(inv.error(), MatrixError::SINGULAR);

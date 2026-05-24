@@ -10,6 +10,7 @@ Checks: "-*,
   readability-*,
   -bugprone-easily-swappable-parameters,
   -cert-dcl21-cpp,
+  -clang-analyzer-optin.portability.UnixAPI,
   -cert-err58-cpp,
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-magic-numbers,
@@ -25,6 +26,7 @@ Checks: "-*,
   -performance-enum-size,
   -readability-identifier-length,
   -readability-magic-numbers,
+  -readability-math-missing-parentheses,
   -readability-redundant-access-specifiers,
   -readability-uppercase-literal-suffix"
 
@@ -89,4 +91,5 @@ CheckOptions:
 
 WarningsAsErrors: "*"
 
-HeaderFilterRegex: ".*\\.(h|hpp)$"
+HeaderFilterRegex: ".*/(include/tinyrenderer|src)/.*\\.(h|hpp)$"
+ExcludeHeaderFilterRegex: ".*/(_deps|build)/.*"
