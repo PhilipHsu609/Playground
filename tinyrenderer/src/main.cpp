@@ -7,11 +7,16 @@
 
 #include <fmt/core.h>
 
+#include <fmt/format.h>
+
 #include <cmath>
+#include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <limits>
 #include <numbers>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -77,11 +82,10 @@ auto viewportMatrix(float w, float h) {
 }
 
 int main() try {
-    constexpr size_t width = 1600;
-    constexpr size_t height = 1600;
-
-    TGAImage image(width, height, TGAImage::RGB);
-    std::vector<float> zbuffer(width * height, std::numeric_limits<float>::max());
+    constexpr size_t width = 800;
+    constexpr size_t height = 800;
+    constexpr int numFrames = 36;
+    constexpr int frameDelay = 11; // ImageMagick "centiseconds" per frame; ~9 fps.
 
     Model model("obj/diablo3_pose/diablo3_pose.obj");
     Material material{
@@ -96,8 +100,9 @@ int main() try {
     fmt::print("nverts: {}\n", model.nverts());
     fmt::print("nfaces: {}\n", model.nfaces());
 
-    constexpr Vec3f lightDir(1.f, 0.f, 0.f);
-    const Camera cam{
+    // Per-frame mutable state. Defaults below; the animation block inside the
+    // loop overwrites whichever fields it wants each iteration.
+    Camera cam{
         .eye = Vec3f(0.f, 0.f, 3.f),
         .center = Vec3f(0.f, 0.f, 0.f),
         .up = Vec3f(0.f, 1.f, 0.f),
@@ -106,19 +111,55 @@ int main() try {
         .nearPlane = 3.f,
         .farPlane = 100.f,
     };
+    Vec3f lightDir(1.f, 0.f, 0.f);
 
-    const auto MVP = projectionMatrix(cam) * viewMatrix(cam);
     const auto VP = viewportMatrix(width, height);
-
-    BlinnPhongShader shader(std::move(model), std::move(material), MVP, VP, lightDir,
+    BlinnPhongShader shader(std::move(model), std::move(material),
+                            projectionMatrix(cam) * viewMatrix(cam), VP, lightDir,
                             cam.eye);
 
-    for (const auto &tri : shader.triangles()) {
-        rasterize(tri, shader, zbuffer, image);
+    std::filesystem::create_directory("frames");
+    for (int i = 0; i < numFrames; ++i) {
+        const float t = static_cast<float>(i) / static_cast<float>(numFrames);
+
+        // ====== animation block: edit anything you want per frame ======
+        // `cam`, `lightDir`, and `shader.material()` are all mutable. Mutate
+        // any subset; the harness below pushes the updated state into the
+        // shader before rendering. The shader's heavy state (model + texture
+        // pixels) stays alive across frames, so this is cheap.
+        const float theta = t * 2.f * std::numbers::pi_v<float>;
+        constexpr float orbitRadius = 3.f;
+        cam.eye = Vec3f(orbitRadius * std::sin(theta), 0.f, orbitRadius * std::cos(theta));
+        // Examples (uncomment / mix to taste):
+        //   lightDir = Vec3f(std::cos(theta), 0.f, std::sin(theta));   // orbit light
+        //   shader.material().shininess = 5.f + 95.f * t;              // shininess sweep
+        //   shader.material().normalMap = (i < numFrames / 2) ? shader.material().normalMap : std::nullopt;
+        // ====== end animation block ======
+
+        shader.setMVP(projectionMatrix(cam) * viewMatrix(cam));
+        shader.setEye(cam.eye);
+        shader.setLightDir(lightDir);
+
+        TGAImage image(width, height, TGAImage::RGB);
+        std::vector<float> zbuffer(width * height, std::numeric_limits<float>::max());
+        for (const auto &tri : shader.triangles()) {
+            rasterize(tri, shader, zbuffer, image);
+        }
+        image.flipVertically();
+
+        const std::string filename = fmt::format("frames/frame_{:03d}.png", i);
+        image.savePng(filename.c_str());
+        fmt::print("frame {}/{}\n", i + 1, numFrames);
     }
 
-    image.flipVertically();
-    image.savePng("output.png");
+    fmt::print("assembling GIF...\n");
+    const std::string gifCmd =
+        fmt::format("convert -delay {} -loop 0 frames/frame_*.png output.gif", frameDelay);
+    // NOLINTNEXTLINE(cert-env33-c, concurrency-mt-unsafe)
+    if (std::system(gifCmd.c_str()) != 0) {
+        fmt::print(stderr,
+                   "warning: ImageMagick convert failed; frames remain in frames/\n");
+    }
 
     return 0;
 } catch (const std::exception &e) {

@@ -71,6 +71,16 @@ class BlinnPhongShader : public IShader {
     [[nodiscard]] Vec3f vertex(size_t faceIdx, size_t cornerIdx) override;
     [[nodiscard]] TGAColor fragment(const Vec3f &bary) const override;
 
+    // Per-frame mutable uniforms. Heavy state (model, material textures) stays
+    // owned by the shader; callers swap these scalars between renders.
+    void setMVP(const Mat4f &mvp) { mvp_ = mvp; }
+    void setEye(const Vec3f &eye) { eye_ = eye; }
+    void setLightDir(const Vec3f &lightDir) { lightDir_ = lightDir; }
+
+    // Mutable access to the material so animations can vary shininess, toggle
+    // optional textures, recolor, etc., without rebuilding the shader.
+    [[nodiscard]] Material &material() { return material_; }
+
   private:
     [[nodiscard]] size_t faceCount() const override { return model_.nfaces(); }
 
