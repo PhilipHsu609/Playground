@@ -115,6 +115,7 @@ class TGAImage {
     [[nodiscard]] std::uint16_t getHeight() const { return height_; }
     [[nodiscard]] std::uint8_t getBytespp() const { return bytespp_; }
     std::vector<std::uint8_t> &buffer() { return data_; }
+    [[nodiscard]] const std::vector<std::uint8_t> &buffer() const { return data_; }
 
     enum Format { GRAYSCALE = 1, RGB = 3, RGBA = 4 };
 

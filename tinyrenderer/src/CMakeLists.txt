@@ -8,6 +8,7 @@ target_sources(
     Drawer.cpp
     Model.cpp
     Shader.cpp
+    PngWriter.cpp
 )
 
 target_include_directories(
@@ -21,6 +22,8 @@ target_link_libraries(
     PUBLIC
     project_compile_flags
     fmt::fmt
+    PRIVATE
+    stb_image
 )
 
 # Main executable

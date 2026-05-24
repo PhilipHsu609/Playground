@@ -37,7 +37,19 @@ FetchContent_Declare(
     SYSTEM
 )
 
-FetchContent_MakeAvailable(fmt googletest)
+# stb is header-only with no CMake project; fetch and expose the include dir
+# through an INTERFACE library so targets can link `stb_image` to pull it in.
+FetchContent_Declare(
+    stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG 31c1ad37456438565541f4919958214b6e762fb4
+    SYSTEM
+)
+
+FetchContent_MakeAvailable(fmt googletest stb)
+
+add_library(stb_image INTERFACE)
+target_include_directories(stb_image SYSTEM INTERFACE ${stb_SOURCE_DIR})
 
 # Add source directory
 add_subdirectory(src)

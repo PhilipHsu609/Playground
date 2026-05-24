@@ -1,6 +1,7 @@
 #include "tinyrenderer/Drawer.hpp"
 #include "tinyrenderer/Matrix.hpp"
 #include "tinyrenderer/Model.hpp"
+#include "tinyrenderer/PngWriter.hpp"
 #include "tinyrenderer/Shader.hpp"
 #include "tinyrenderer/TGAImage.hpp"
 #include "tinyrenderer/Vector.hpp"
@@ -8,9 +9,7 @@
 #include <fmt/core.h>
 
 #include <cmath>
-#include <cstdlib>
 #include <exception>
-#include <filesystem>
 #include <limits>
 #include <numbers>
 #include <optional>
@@ -120,15 +119,7 @@ int main() try {
     }
 
     image.flipVertically();
-    image.save("output.tga");
-
-    // ImageMagick converts the TGA to a smaller PNG; remove the intermediate.
-    // NOLINTNEXTLINE(cert-env33-c, concurrency-mt-unsafe)
-    if (std::system("convert output.tga output.png") == 0) {
-        std::filesystem::remove("output.tga");
-    } else {
-        fmt::print(stderr, "warning: convert failed; keeping output.tga\n");
-    }
+    writePng(image, "output.png");
 
     return 0;
 } catch (const std::exception &e) {
