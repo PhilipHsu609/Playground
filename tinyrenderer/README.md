@@ -72,115 +72,66 @@ The bottom row puts $w' = -z$, which triggers the perspective divide. Row 2 maps
 
 ## Lesson 6: Shading
 
-Introduce a **programmable shader architecture** — the rasterizer becomes generic, and per-vertex/per-pixel work moves into a shader. Mirrors the OpenGL pipeline.
+Programmable shader architecture — rasterizer becomes generic, per-vertex/pixel work moves into a shader (mirrors OpenGL).
 
-**`IShader` interface**:
+- `vertex(face, corner)` → screen space, stashes per-vertex "varyings" as member state
+- `fragment(bary)` → barycentric-interpolates varyings, returns pixel color
 
-```cpp
-struct IShader {
-    virtual Vec3f vertex(size_t faceIdx, size_t cornerIdx) = 0;
-    virtual std::optional<TGAColor> fragment(const Vec3f &bary) const = 0;
-};
-```
+**Phong reflection model**:
 
-- `vertex()` transforms a face's corner to screen space, and (as a side effect) stores per-vertex values ("varyings") as member state
-- `fragment()` reads the varyings, barycentric-interpolates them via the shader's own math, and returns the pixel color — or `nullopt` to discard
+$$I = I_a + I_d \max(0, \hat{n} \cdot \hat{l}) + I_s \max(0, \hat{r} \cdot \hat{v})^e, \quad \hat{r} = 2\hat{n}(\hat{n} \cdot \hat{l}) - \hat{l}$$
 
-**Pipeline flow** (per triangle):
+- **Ambient** constant floor · **Diffuse** $\hat{n}\cdot\hat{l}$ (Lambert) · **Specular** $(\hat{r}\cdot\hat{v})^e$ (shininess $e$)
 
-```
-for j in 0..2:           pts[j] = shader.vertex(faceIdx, j)
-                         Triangle tri{pts}
-rasterizer iterates:     for each pixel inside bbox:
-                             bary = barycentric(pixel, tri)
-                             color = shader.fragment(bary)
-                             if color: z-test, write framebuffer
-```
+**Varyings trick** — store per-vertex normals as *columns* of a `Mat3f`; `normals * bary` interpolates in one matrix-vector multiply.
 
-**Phong reflection model** — the fragment shader combines three terms:
+- **Model**: parse OBJ `vn` lines + normal index into `normals_`; faces store `{vertIdx, normalIdx}`.
+- **Specular shortcut** $r \cdot v \approx r_z$ assumes the eye is on the z-axis — otherwise needs per-pixel view direction.
 
-$$I = I_a + I_d \max(0, \hat{n} \cdot \hat{l}) + I_s \max(0, \hat{r} \cdot \hat{v})^e$$
-
-where $\hat{r} = 2\hat{n}(\hat{n} \cdot \hat{l}) - \hat{l}$ is the reflected light direction and $e$ is the shininess exponent.
-
-- **Ambient**: constant background light — prevents pure black in unlit areas
-- **Diffuse** (Lambert): dot product of normal and light direction — brightest when surface faces the light
-- **Specular**: reflected-light direction dotted with view direction, raised to shininess — tight highlights on shiny surfaces
-
-**Varyings trick** — per-vertex normals are stored as *columns* of a `Mat3f`, so `normals * bary` gives the interpolated normal in a single multiply instead of three separate scales and adds.
-
-**Model extension** — OBJ's `vn x y z` lines and the normal index of `v/t/n` face entries are now parsed into a parallel `normals_` buffer; faces store `{vertIdx, normalIdx}` per corner.
-
-- **Discard order**: the z-buffer is updated only *after* the fragment returns a color, so discarded pixels don't pollute depth.
-- **Specular shortcut**: using $r \cdot v \approx r_z$ assumes the camera looks down world $-z$. True only when the eye is on the z-axis — otherwise need to compute view direction per pixel or move lighting to camera space.
-
-> Later refined to **Blinn-Phong** ($\hat{n} \cdot \hat{h}$ where $\hat{h} = \widehat{\hat{l} + \hat{v}}$) with a true per-pixel view direction interpolated from a `worldPositions` varying.
+> Refined to **Blinn-Phong**: $\hat{n} \cdot \hat{h}$ with $\hat{h} = \widehat{\hat{l} + \hat{v}}$, view direction from a `worldPositions` varying.
 
 ## Lesson 7: More Data!
 
-Three new types of texture, all parsed from `.tga` files:
+Textures parsed from `.tga`: **diffuse** (`_diffuse`, surface color), **normal** (`_nm`, RGB→xyz), **specular** (`_spec`, highlight intensity). This lesson: diffuse.
 
-| Texture | Suffix | Purpose |
-|---------|--------|---------|
-| Diffuse | `_diffuse.tga` | Per-pixel surface color |
-| Normal | `_nm.tga` | Per-pixel normal (RGB → xyz) |
-| Specular | `_spec.tga` | Per-pixel specular intensity |
+- **Model**: parse `vt u v`; `FaceCorner` becomes `{vertIdx, texIdx, normalIdx}` (the OBJ `v/t/n` format).
+- **UV varying** — columns of a `Mat<float, 2, 3>`; `texCoords * bary` → interpolated `Vec2f`.
+- **Sampling v-flip** — TGA is top-down after load, OBJ UVs are bottom-left origin: `y = (1 - uv.y) * h`.
+- **Modulation** — texel color × lighting factor (texture = albedo, lighting modulates).
 
-This lesson covers the **diffuse** map; normal and specular come later.
-
-**Model extension** — parse `vt u v` lines into a `texCoords_` buffer and store the texture index in each face corner. `FaceCorner` is now `{vertIdx, texIdx, normalIdx}`, matching the OBJ `v/t/n` format exactly.
-
-**UV varying** — texture coordinates are a third per-vertex value (after normals and world positions). Stored as columns of a `Mat<float, 2, 3>`; `texCoords * bary` interpolates to a `Vec2f` UV in the fragment shader. Same column-per-vertex pattern lets matrix-vector multiply do the barycentric blend in one operation.
-
-**Sampling** — convert `[0, 1]²` UV → pixel coords. Watch the v-axis convention: TGA images are stored top-down internally after `flipVertically()` on load, but OBJ UVs use bottom-left origin, so `v` flips when indexing:
-```cpp
-const int y = std::clamp(static_cast<int>((1.f - uv.y()) * h), 0, h - 1);
-```
-
-**Modulation** — sampled texel color is multiplied per-channel by the Blinn-Phong lighting factor. Texture provides surface *albedo*; lighting modulates it.
-
-**Architecture refactor** — `IShader` and concrete shaders moved out of `main.cpp` into a dedicated `Shader.{hpp,cpp}` module. A single `BlinnPhongShader` is parameterized by a `Material` struct holding `baseColor`, `shininess`, and optional `diffuse`/`glow`/`specular`/`normalMap` textures. The fragment branches on which maps are present; untextured surfaces just leave the optionals empty.
-
-This mirrors how production renderers separate the shading *model* from the surface *description* — swapping a textured asset for a solid color is a Material change, not a shader change.
-
-**Range-based iteration** — `IShader` exposes a public `triangles()` view (built on `std::views::iota | std::views::transform`) that lazily produces post-vertex-processing triangles. The face count is supplied via a private virtual `faceCount()` (NVI / Template Method pattern). Caller becomes:
-```cpp
-for (const auto &tri : shader.triangles()) {
-    rasterize(tri, shader, zbuffer, image);
-}
-```
-
-- **`fragment()` no longer returns `std::optional`** — neither shader uses discard; YAGNI applied. Add it back when alpha cutout / masking arrives.
+**Material struct** — `BlinnPhongShader` carries a `Material` (`baseColor`, `shininess`, optional `diffuse`/`glow`/`specular`/`normalMap`); fragment branches on which maps are present. Separates shading *model* from surface *description* — solid color vs. textured is a Material change, not a shader change.
 
 ## Lesson 8: Tangent Space Normal Mapping
 
-Per-pixel surface detail without adding geometry: a *normal map* texture encodes a tilted normal at every texel, fed into the lighting calculation. World-space normal maps bake the world directions into the texture (broken under any mesh rotation/animation). Tangent-space maps encode the normal in a **local frame attached to the surface** — same texture survives any pose.
+Per-pixel surface detail without geometry. World-space normal maps break under rotation; **tangent-space** maps encode the normal in a local surface frame, so one texture survives any pose (characteristically blue — most texels near $(0,0,1)$).
 
-**The local frame (T, B, N)** at every point:
-- $\hat{n}$ — geometric normal at that point (from the mesh)
-- $\hat{T}$ — surface direction aligned with the texture's $+u$ axis
-- $\hat{B}$ — surface direction aligned with the texture's $+v$ axis
+**TBN frame**: $\hat{n}$ geometric normal, $\hat{T}$ along texture $+u$, $\hat{B}$ along $+v$.
 
-Most texels in a tangent-space map are close to $(0, 0, 1)$ — "no deviation from the smooth surface" — so the map looks characteristically bluish-purple.
-
-**Deriving T and B from the UV map** — formally, T and B are the partial derivatives of the inverse parameterization:
-
-$$T = \frac{\partial \varphi^{-1}}{\partial u}, \quad B = \frac{\partial \varphi^{-1}}{\partial v}$$
-
-Approximating with triangle edges: let $E = [e_1 \mid e_2]$ be the world-space edges ($3\times2$), $U = [\delta_1 \mid \delta_2]$ the UV deltas ($2\times2$). Then
+**Derive T, B from the triangle** — world edges $E = [e_1 \mid e_2]$ ($3\times2$), UV deltas $U$ ($2\times2$):
 
 $$[T \mid B] = E \cdot U^{-1}$$
 
-falls straight out by inverting "$M E = U$" — the mapping that takes world edges to UV deltas should send T and B to the standard UV basis. Closed-form $U^{-1}$ inverse is plenty for a $2\times2$.
-
-**Bring the texel back to world space** — sample $t = (t_x, t_y, t_z)$ from the map, decode each channel from $[0, 255]$ to $[-1, 1]$, and:
+**Reconstruct world normal** — sample $t$, decode $[0,255]\to[-1,1]$, then:
 
 $$\hat{n}_{world} = \widehat{t_x \hat{T} + t_y \hat{B} + t_z \hat{n}}$$
 
-This is the TBN change-of-basis: tangent-space → world-space. Replace the geometric $n$ in the lighting calculation with $\hat{n}_{world}$ before computing Blinn-Phong.
+- **Normalize T and B** — the formula scales them by UV stretch; the map assumes $|T|=|B|=1$.
+- **T, B not generally orthogonal** — reflects UV shear/stretch; we skip MikkTSpace, fine for learning.
+- **2×2 inverse on `Mat`** — closed form, gated by `requires(R == 2 && C == 2)`, returns `std::expected` (`MatrixError::SINGULAR` on degenerate UV).
 
-- **Differential geometry in disguise** — the UV map is a *chart* of the surface; $(T, B)$ is the *coordinate basis* of the tangent plane, pushed forward to world coordinates; TBN is the *Jacobian of the inverse chart* augmented by the surface normal. The graphics formula is just the chart-transition rule.
-- **T and B aren't generally orthogonal** — they reflect any shear or stretch in the UV unwrap. By *Gauss's Theorema Egregium*, any non-developable surface (sphere, organic mesh) cannot be UV-unwrapped to ℝ² without some distortion. On Diablo's mesh, mean angle between T and B comes out around 78°, with some degenerate triangles. The render still looks correct because high-frequency bump detail averages out the small basis errors.
-- **Must normalize T and B** — the raw formula scales them by the local UV stretch, so the texel's intended direction gets overwhelmed unless we re-normalize. The artist baked the map assuming $|T| = |B| = 1$.
-- **Production fixup** — engines standardize on *MikkTSpace*, a specific tangent-computation algorithm shared between texture bakers (Substance, Blender, Marmoset) and renderers (Unreal, Unity, glTF). Skipping it (as we do) leaves small drift but is fine for learning.
-- **2×2 inverse added to `Mat`** — closed-form $\begin{pmatrix}a & b \\\ c & d\end{pmatrix}^{-1} = \frac{1}{ad-bc}\begin{pmatrix}d & -b \\\ -c & a\end{pmatrix}$, gated by `requires(R == 2 && C == 2)`.
+## Lesson 9: Shadow Mapping
+
+Hard shadows via **two passes**, reusing the depth buffer:
+
+1. **Depth pass** — render from the *light's* view; the depth buffer is the **shadow map** (nearest surface to the light per texel).
+2. **Shading pass** — render from the camera; transform each fragment's world position into light space and compare. Farther than the stored depth ⇒ occluded ⇒ ambient only.
+
+- **World-space lookup** — our shader already carries a `worldPos` varying, so we go world → light-screen directly, skipping the reference tutorial's $N \cdot M^{-1}$ inversion.
+- **Orthographic light** — a directional light has parallel rays, so the light projection is orthographic (leaves $w = 1$; the lookup needs no perspective divide).
+- **Shadow acne → bias** — the two passes round depth differently, so a lit surface shadows itself. Compare `lz > stored + bias`. Too much bias → *peter-panning* (shadow detaches from the feet).
+
+**Rasterizer refactor** (shipped here):
+
+- **Perspective-correct interpolation** — screen-space barycentrics interpolate attributes wrong (textures warp on the floor). Reweight by $1/w$ and renormalize. Depth is exempt: NDC $z$ is already linear in screen space.
+- **Rasterizer owns interpolation** — shaders return clip-space corners via `primitive(face)` and shade via `fragment(Varyings)`; the rasterizer does the divide, viewport, depth test, and $1/w$-correct blend.
+- **`IShader` → `Shader` concept** — the varying type now flows through the call, so dispatch is a template + concept, not runtime polymorphism. TBN is constant per triangle, so it's computed once in `primitive()` and baked into all three `Varyings` corners.
