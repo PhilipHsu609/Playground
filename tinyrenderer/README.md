@@ -9,11 +9,15 @@ My implementation of [ssloy/tinyrenderer](https://github.com/ssloy/tinyrenderer)
 
 ## Lesson 1: Bresenham’s Line Drawing Algorithm
 
+![Wireframe render of the Diablo model](docs/images/lesson1.png)
+
 - Parametric line → x-iteration → transpose for steep lines → integer-only Bresenham
 - Track an integer error term; step $y$ when error exceeds threshold
 - Wireframe rendering of OBJ models via orthographic projection
 
 ## Lesson 2: Triangle Rasterization and Back-Face Culling
+
+![Diablo model filled with flat, randomly-colored triangles](docs/images/lesson2.png)
 
 - Bounding-box iteration with barycentric point-in-triangle test
 - Barycentric coordinates: $P = \alpha A + \beta B + \gamma C$, $\alpha + \beta + \gamma = 1$
@@ -24,11 +28,15 @@ My implementation of [ssloy/tinyrenderer](https://github.com/ssloy/tinyrenderer)
 
 ## Lesson 3: Hidden Faces Removal (Z-Buffer)
 
+![Z-buffered flat-shaded Diablo model](docs/images/lesson3.png)
+
 - Per-pixel depth buffer: interpolate $z$ via barycentric coords, paint only if $z > \text{zbuffer}[pixel]$
 - Order-independent — no triangle sorting needed
 - Back-face culling alone leaves artifacts; painter’s algorithm can’t handle all cases
 
 ## Lesson 4: Naive Camera Handling
+
+![Diablo model with naive perspective foreshortening](docs/images/lesson4.png)
 
 Rotate the scene instead of moving the camera — apply a modeling transform before projection. Y-axis rotation matrix:
 
@@ -45,6 +53,8 @@ $$x' = \frac{x}{1 - z/c}, \quad y' = \frac{y}{1 - z/c}$$
 - Introduced `Mat<T, R, C>` class with matrix-matrix and matrix-vector multiply
 
 ## Lesson 5: Better Camera Handling
+
+![Camera orbiting the textured Diablo model](docs/images/lesson5.gif)
 
 Decouple the camera from the projection. The full pipeline is now a composition of four standard matrices:
 
@@ -72,6 +82,8 @@ The bottom row puts $w' = -z$, which triggers the perspective divide. Row 2 maps
 
 ## Lesson 6: Shading
 
+![Untextured Blinn-Phong shading on the Diablo model](docs/images/lesson6.png)
+
 Programmable shader architecture — rasterizer becomes generic, per-vertex/pixel work moves into a shader (mirrors OpenGL).
 
 - `vertex(face, corner)` → screen space, stashes per-vertex "varyings" as member state
@@ -92,6 +104,8 @@ $$I = I_a + I_d \max(0, \hat{n} \cdot \hat{l}) + I_s \max(0, \hat{r} \cdot \hat{
 
 ## Lesson 7: More Data!
 
+![Diablo model with a diffuse texture applied](docs/images/lesson7.png)
+
 Textures parsed from `.tga`: **diffuse** (`_diffuse`, surface color), **normal** (`_nm`, RGB→xyz), **specular** (`_spec`, highlight intensity). This lesson: diffuse.
 
 - **Model**: parse `vt u v`; `FaceCorner` becomes `{vertIdx, texIdx, normalIdx}` (the OBJ `v/t/n` format).
@@ -102,6 +116,8 @@ Textures parsed from `.tga`: **diffuse** (`_diffuse`, surface color), **normal**
 **Material struct** — `BlinnPhongShader` carries a `Material` (`baseColor`, `shininess`, optional `diffuse`/`glow`/`specular`/`normalMap`); fragment branches on which maps are present. Separates shading *model* from surface *description* — solid color vs. textured is a Material change, not a shader change.
 
 ## Lesson 8: Tangent Space Normal Mapping
+
+![Diablo model with tangent-space normal mapping adding surface detail](docs/images/lesson8.png)
 
 Per-pixel surface detail without geometry. World-space normal maps break under rotation; **tangent-space** maps encode the normal in a local surface frame, so one texture survives any pose (characteristically blue — most texels near $(0,0,1)$).
 
@@ -120,6 +136,8 @@ $$\hat{n}_{world} = \widehat{t_x \hat{T} + t_y \hat{B} + t_z \hat{n}}$$
 - **2×2 inverse on `Mat`** — closed form, gated by `requires(R == 2 && C == 2)`, returns `std::expected` (`MatrixError::SINGULAR` on degenerate UV).
 
 ## Lesson 9: Shadow Mapping
+
+![Diablo model casting a shadow onto a checkered floor as the light orbits](docs/images/lesson9.gif)
 
 Hard shadows via **two passes**, reusing the depth buffer:
 
