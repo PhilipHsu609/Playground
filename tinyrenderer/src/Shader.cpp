@@ -6,10 +6,11 @@
 
 namespace {
 
-Vec3f project(const Vec3f &world, const Mat4f &mvp, const Mat4f &viewport) {
-    const Vec4f v(world.x(), world.y(), world.z(), 1.f);
-    const Vec4f clip = mvp * v;
-    return Vec3f(viewport * (clip / clip.w()));
+constexpr float AMBIENT = 0.1f;
+
+// Clip-space position (pre-divide; the rasterizer owns the divide).
+Vec4f clipVertex(const Vec3f &world, const Mat4f &mvp) {
+    return mvp * Vec4f(world.x(), world.y(), world.z(), 1.f);
 }
 
 // Sample a texture using OBJ UV convention (u right, v up, origin bottom-left).
@@ -33,75 +34,113 @@ Vec3f sampleNormal(const TGAImage &tex, Vec2f uv) {
 
 } // namespace
 
-BlinnPhongShader::BlinnPhongShader(Model model, Material material, Mat4f mvp, Mat4f vp,
+bool inShadow(const Vec3f &worldPos, const Mat4f &lightMVP, const Mat4f &lightVP,
+              const std::vector<float> &shadowMap, size_t shadowW, size_t shadowH,
+              float bias) {
+    const Vec4f clip = lightMVP * Vec4f(worldPos.x(), worldPos.y(), worldPos.z(), 1.f);
+    const Vec4f screen = lightVP * clip; // orthographic: clip.w() == 1
+    // Check bounds before casting: a negative coord would truncate into a valid
+    // index rather than being rejected.
+    const float fx = screen.x();
+    const float fy = screen.y();
+    if (fx < 0.f || fy < 0.f || fx >= static_cast<float>(shadowW) ||
+        fy >= static_cast<float>(shadowH)) {
+        return false; // outside the light frustum -> lit
+    }
+    const float lz = clip.z(); // smaller z == closer to light
+    const size_t idx = static_cast<size_t>(fy) * shadowW + static_cast<size_t>(fx);
+    return lz > shadowMap[idx] + bias;
+}
+
+BlinnPhongShader::BlinnPhongShader(Model model, Material material, Mat4f mvp,
                                    Vec3f lightDir, Vec3f eye)
-    : model_(std::move(model)), material_(std::move(material)), mvp_(mvp), vp_(vp),
+    : model_(std::move(model)), material_(std::move(material)), mvp_(mvp),
       lightDir_(lightDir), eye_(eye) {}
 
-Vec3f BlinnPhongShader::vertex(size_t faceIdx, size_t cornerIdx) {
-    const auto &v = model_.vert(faceIdx, cornerIdx);
-    const auto &n = model_.normal(faceIdx, cornerIdx);
-    const auto &uv = model_.texCoord(faceIdx, cornerIdx);
-    for (size_t i = 0; i < 3; i++) {
-        normals_[i, cornerIdx] = n[i];
-        worldPositions_[i, cornerIdx] = v[i];
+std::array<VertexOut<BlinnPhongShader::Varyings>, 3>
+BlinnPhongShader::primitive(size_t faceIdx) const {
+    std::array<Vec3f, 3> worldPos;
+    std::array<Vec2f, 3> uv;
+    for (size_t c = 0; c < 3; ++c) {
+        worldPos[c] = model_.vert(faceIdx, c);
+        uv[c] = model_.texCoord(faceIdx, c);
     }
-    for (size_t i = 0; i < 2; i++) {
-        texCoords_[i, cornerIdx] = uv[i];
+
+    // Tangent basis from world edges and UV deltas: [T B] = E * U^-1, with
+    // E = [e1 | e2], U = [du1 du2; dv1 dv2]. Degenerate UV leaves T/B zero,
+    // which disables normal mapping in fragment().
+    Vec3f T;
+    Vec3f B;
+    const Vec3f e1 = worldPos[1] - worldPos[0];
+    const Vec3f e2 = worldPos[2] - worldPos[0];
+    const Mat<float, 2, 2> uvMat{
+        {uv[1].x() - uv[0].x(), uv[2].x() - uv[0].x()},
+        {uv[1].y() - uv[0].y(), uv[2].y() - uv[0].y()},
+    };
+    if (const auto uvInv = uvMat.inverse()) {
+        T = (e1 * (*uvInv)[0, 0] + e2 * (*uvInv)[1, 0]).normalize();
+        B = (e1 * (*uvInv)[0, 1] + e2 * (*uvInv)[1, 1]).normalize();
     }
-    return project(v, mvp_, vp_);
+
+    std::array<VertexOut<Varyings>, 3> out;
+    for (size_t c = 0; c < 3; ++c) {
+        out[c] = {
+            .clip = clipVertex(worldPos[c], mvp_),
+            .vary = {.normal = model_.normal(faceIdx, c),
+                     .worldPos = worldPos[c],
+                     .T = T,
+                     .B = B,
+                     .uv = uv[c]},
+        };
+    }
+    return out;
 }
 
 float BlinnPhongShader::blinnPhongFactor(const Vec3f &n, const Vec3f &halfway) const {
-    constexpr float ambient = 0.1f;
     const float diffuse = std::max(0.f, dot(n, lightDir_));
     const float specular = std::pow(std::max(0.f, dot(n, halfway)), material_.shininess);
-    return std::min(1.f, ambient + diffuse + specular);
+    return std::min(1.f, AMBIENT + diffuse + specular);
 }
 
-TGAColor BlinnPhongShader::fragment(const Vec3f &bary) const {
-    Vec3f n = (normals_ * bary).normalize();
-    const Vec3f worldPos = worldPositions_ * bary;
-    const Vec3f viewDir = (eye_ - worldPos).normalize();
-    const Vec2f uv = texCoords_ * bary;
+TGAColor BlinnPhongShader::fragment(const Varyings &in) const {
+    Vec3f n = in.normal.normalize();
+    const Vec3f viewDir = (eye_ - in.worldPos).normalize();
 
-    // Tangent-space normal mapping: sample a per-pixel surface-local normal
-    // and rotate it into world space via the TBN basis derived from the
-    // triangle's world-space edges and UV deltas:
-    //   [T B] = E * U^-1
-    // with E = [e1 | e2] (3x2 edge matrix) and U = [du1 du2; dv1 dv2].
-    if (material_.normalMap) {
-        Vec3f e1;
-        Vec3f e2;
-        for (size_t i = 0; i < 3; i++) {
-            e1[i] = worldPositions_[i, 1] - worldPositions_[i, 0];
-            e2[i] = worldPositions_[i, 2] - worldPositions_[i, 0];
-        }
-        const Mat<float, 2, 2> uvMat{
-            {texCoords_[0, 1] - texCoords_[0, 0], texCoords_[0, 2] - texCoords_[0, 0]},
-            {texCoords_[1, 1] - texCoords_[1, 0], texCoords_[1, 2] - texCoords_[1, 0]},
-        };
-        // Degenerate UV (two corners share a uv) gives a singular uvMat with
-        // no TBN basis; in that case keep the geometric normal `n` as-is.
-        if (const auto uvInv = uvMat.inverse()) {
-            const Vec3f T = (e1 * (*uvInv)[0, 0] + e2 * (*uvInv)[1, 0]).normalize();
-            const Vec3f B = (e1 * (*uvInv)[0, 1] + e2 * (*uvInv)[1, 1]).normalize();
-            const Vec3f t = sampleNormal(*material_.normalMap, uv);
-            n = (T * t.x() + B * t.y() + n * t.z()).normalize();
-        }
+    // Normal mapping: rotate the sampled tangent-space normal into world space
+    // via the TBN basis. Zero T (degenerate UV) skips this, keeping geometric n.
+    if (material_.normalMap && (in.T.x() != 0.f || in.T.y() != 0.f || in.T.z() != 0.f)) {
+        const Vec3f T = in.T.normalize();
+        const Vec3f B = in.B.normalize();
+        const Vec3f t = sampleNormal(*material_.normalMap, in.uv);
+        n = (T * t.x() + B * t.y() + n * t.z()).normalize();
     }
 
     const Vec3f halfway = (lightDir_ + viewDir).normalize();
 
     TGAColor albedo = material_.baseColor;
     if (material_.diffuse) {
-        albedo = albedo * sample(*material_.diffuse, uv);
+        albedo = albedo * sample(*material_.diffuse, in.uv);
     }
 
-    TGAColor lit = albedo * blinnPhongFactor(n, halfway);
+    float factor = blinnPhongFactor(n, halfway);
+    if (shadowMap_ != nullptr && inShadow(in.worldPos, lightMVP_, lightVP_, *shadowMap_,
+                                          shadowW_, shadowH_, shadowBias_)) {
+        factor = AMBIENT; // keep only ambient; drop diffuse + specular
+    }
+
+    TGAColor lit = albedo * factor;
     if (material_.glow) {
-        lit = lit + sample(*material_.glow, uv);
+        lit = lit + sample(*material_.glow, in.uv);
     }
 
     return lit;
+}
+
+std::array<VertexOut<DepthShader::Varyings>, 3>
+DepthShader::primitive(size_t faceIdx) const {
+    std::array<VertexOut<Varyings>, 3> out;
+    for (size_t c = 0; c < 3; ++c) {
+        out[c] = {.clip = clipVertex(model_->vert(faceIdx, c), lightMVP_), .vary = {}};
+    }
+    return out;
 }

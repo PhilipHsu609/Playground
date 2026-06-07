@@ -1,40 +1,7 @@
 #include "tinyrenderer/Drawer.hpp"
-#include "tinyrenderer/Shader.hpp"
-#include "tinyrenderer/TGAImage.hpp"
 #include "tinyrenderer/Vector.hpp"
 
 #include <algorithm>
-#include <array>
-#include <cmath>
-#include <limits>
-#include <vector>
-
-namespace {
-struct BBox {
-    int minX, maxX, minY, maxY;
-};
-
-template <size_t N>
-BBox findBbox(const std::array<Vec2f, N> &pts) {
-    float minX = std::numeric_limits<float>::max();
-    float maxX = std::numeric_limits<float>::lowest();
-    float minY = std::numeric_limits<float>::max();
-    float maxY = std::numeric_limits<float>::lowest();
-
-    for (const auto &pt : pts) {
-        minX = std::min(minX, pt.x());
-        maxX = std::max(maxX, pt.x());
-        minY = std::min(minY, pt.y());
-        maxY = std::max(maxY, pt.y());
-    }
-
-    return {
-        .minX = static_cast<int>(std::floor(minX)),
-        .maxX = static_cast<int>(std::ceil(maxX)),
-        .minY = static_cast<int>(std::floor(minY)),
-        .maxY = static_cast<int>(std::ceil(maxY)),
-    };
-}
 
 Vec3f barycentric(Vec2f p, Vec2f t0, Vec2f t1, Vec2f t2) {
     const auto v01 = t1 - t0;
@@ -51,11 +18,12 @@ Vec3f barycentric(Vec2f p, Vec2f t0, Vec2f t1, Vec2f t2) {
     return Vec3f(alpha, beta, gamma);
 }
 
-float interpolateZ(const Vec3f &bary, const Triangle &triangle) {
-    return bary.x() * triangle[0].z() + bary.y() * triangle[1].z() +
-           bary.z() * triangle[2].z();
+Vec3f perspectiveCorrect(const Vec3f &bary, const Vec3f &clipW) {
+    const Vec3f weighted(bary.x() / clipW.x(), bary.y() / clipW.y(),
+                         bary.z() / clipW.z());
+    const float sum = weighted.x() + weighted.y() + weighted.z();
+    return weighted / sum;
 }
-} // namespace
 
 void line(Vec2i u, Vec2i v, TGAImage &image, TGAColor color) {
     int x0 = u.x();
@@ -92,42 +60,5 @@ void line(Vec2i u, Vec2i v, TGAImage &image, TGAColor color) {
             d -= 2 * dx;
         }
         d += 2 * dy;
-    }
-}
-
-void rasterize(const Triangle &triangle, const IShader &shader,
-               std::vector<float> &zbuffer, TGAImage &frameBuffer) {
-    const Vec2f t0(triangle[0]);
-    const Vec2f t1(triangle[1]);
-    const Vec2f t2(triangle[2]);
-
-    const auto bbox = findBbox(std::array{t0, t1, t2});
-
-    const int minX = std::max(bbox.minX, 0);
-    const int maxX = std::min(bbox.maxX, static_cast<int>(frameBuffer.getWidth()) - 1);
-    const int minY = std::max(bbox.minY, 0);
-    const int maxY = std::min(bbox.maxY, static_cast<int>(frameBuffer.getHeight()) - 1);
-
-    for (int x = minX; x <= maxX; x++) {
-        for (int y = minY; y <= maxY; y++) {
-            const Vec2f p(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
-            const Vec3f bary = barycentric(p, t0, t1, t2);
-
-            // If any of the barycentric coordinates is negative, the point is outside the
-            // triangle
-            if (bary.x() < 0 || bary.y() < 0 || bary.z() < 0) {
-                continue;
-            }
-
-            // Interpolate the z value using the barycentric coordinates
-            const float z = interpolateZ(bary, triangle);
-
-            const auto index =
-                static_cast<size_t>(y) * frameBuffer.getWidth() + static_cast<size_t>(x);
-            if (zbuffer[index] > z) {
-                zbuffer[index] = z;
-                frameBuffer.set(x, y, shader.fragment(bary));
-            }
-        }
     }
 }

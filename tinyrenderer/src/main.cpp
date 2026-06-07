@@ -8,6 +8,7 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 
+#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <exception>
@@ -82,6 +83,25 @@ auto viewportMatrix(float w, float h) {
     return result;
 }
 
+/**
+ * @brief Orthographic projection for a directional light.
+ *
+ * Maps the box [l,r] x [b,t] x [-n,-f] (viewing down -z) to the NDC cube
+ * [-1,1]^3. Unlike perspective, it leaves w == 1, so depth is linear and
+ * the shadow lookup needs no perspective divide.
+ */
+auto orthographicMatrix(float l, float r, float b, float t, float n, float f) {
+    Mat4f result;
+    result[0, 0] = 2.f / (r - l);
+    result[1, 1] = 2.f / (t - b);
+    result[2, 2] = -2.f / (f - n);
+    result[0, 3] = -(r + l) / (r - l);
+    result[1, 3] = -(t + b) / (t - b);
+    result[2, 3] = -(f + n) / (f - n);
+    result[3, 3] = 1.f;
+    return result;
+}
+
 } // namespace
 
 int main() try {
@@ -100,13 +120,18 @@ int main() try {
         .normalMap = TGAImage("obj/diablo3_pose/diablo3_pose_nm_tangent.tga"),
     };
 
-    fmt::print("nverts: {}\n", model.nverts());
-    fmt::print("nfaces: {}\n", model.nfaces());
+    Model floor("obj/floor.obj");
+    Material floorMaterial{
+        .baseColor = TGAColor(255, 255, 255),
+        .shininess = 5.f,
+        .diffuse = TGAImage("obj/floor_diffuse.tga"),
+        .glow = std::nullopt,
+        .specular = std::nullopt,
+        .normalMap = TGAImage("obj/floor_nm_tangent.tga"),
+    };
 
-    // Per-frame mutable state. Defaults below; the animation block inside the
-    // loop overwrites whichever fields it wants each iteration.
     const Camera cam{
-        .eye = Vec3f(0.f, 0.f, 3.f),
+        .eye = Vec3f(-1.5f, .5f, 3.5f),
         .center = Vec3f(0.f, 0.f, 0.f),
         .up = Vec3f(0.f, 1.f, 0.f),
         .fovy = 45.f,
@@ -117,37 +142,63 @@ int main() try {
     Vec3f lightDir(1.f, 0.f, 0.f);
 
     const auto VP = viewportMatrix(width, height);
-    BlinnPhongShader shader(std::move(model), std::move(material),
-                            projectionMatrix(cam) * viewMatrix(cam), VP, lightDir,
-                            cam.eye);
+    const auto cameraMVP = projectionMatrix(cam) * viewMatrix(cam);
+    BlinnPhongShader modelShader(std::move(model), std::move(material), cameraMVP,
+                                 lightDir, cam.eye);
+    BlinnPhongShader floorShader(std::move(floor), std::move(floorMaterial), cameraMVP,
+                                 lightDir, cam.eye);
+    const std::array<BlinnPhongShader *, 2> objects{&modelShader, &floorShader};
+
+    // Shadow-map tuning constants
+    constexpr float lightDist = 5.f;
+    constexpr float orthoHalf = 2.f;
+    constexpr float lightNear = 0.1f;
+    constexpr float lightFar = 10.f;
+    constexpr float shadowBias = 0.01f;
 
     std::filesystem::create_directory("frames");
     for (int i = 0; i < numFrames; ++i) {
         const float t = static_cast<float>(i) / static_cast<float>(numFrames);
 
-        // ====== animation block: edit anything you want per frame ======
-        // `cam`, `lightDir`, and `shader.material()` are all mutable. Mutate
-        // any subset; the harness below pushes the updated state into the
-        // shader before rendering. The shader's heavy state (model + texture
-        // pixels) stays alive across frames, so this is cheap.
+        // ====== animation block ======
+        // Light orbits overhead. Elevation stays finite so it never points
+        // straight down, which would degenerate the light camera's view matrix.
+        constexpr float elevation = 1.5f;
         const float theta = t * 2.f * std::numbers::pi_v<float>;
-        lightDir = Vec3f(std::cos(theta), 0.f, std::sin(theta));
-        // Examples (uncomment / mix to taste):
-        //   constexpr float orbitRadius = 3.f;
-        //   cam.eye = Vec3f(orbitRadius * std::sin(theta), 0.f, orbitRadius *
-        //   std::cos(theta)); shader.material().shininess = 5.f + 95.f * t; // shininess
-        //   sweep shader.material().normalMap = (i < numFrames / 2) ?
-        //   shader.material().normalMap : std::nullopt;
+        lightDir = Vec3f(std::cos(theta), elevation, std::sin(theta)).normalize();
         // ====== end animation block ======
 
-        shader.setMVP(projectionMatrix(cam) * viewMatrix(cam));
-        shader.setEye(cam.eye);
-        shader.setLightDir(lightDir);
+        // Light "camera": look from lightDir*dist toward the origin.
+        const Camera lightCam{
+            .eye = lightDir * lightDist,
+            .center = Vec3f(0.f, 0.f, 0.f),
+            .up = Vec3f(0.f, 1.f, 0.f),
+        };
+        const Mat4f lightMVP = orthographicMatrix(-orthoHalf, orthoHalf, -orthoHalf,
+                                                  orthoHalf, lightNear, lightFar) *
+                               viewMatrix(lightCam);
 
+        // --- Pass 1: depth from the light's view ---
+        std::vector<float> lightZ(width * height, std::numeric_limits<float>::max());
+        TGAImage scratch(width, height, TGAImage::RGB);
+        for (auto *obj : objects) {
+            const DepthShader depth(obj->model(), lightMVP);
+            for (size_t f = 0; f < depth.faceCount(); ++f) {
+                rasterize(depth, depth.primitive(f), VP, lightZ, scratch);
+            }
+        }
+
+        // --- Pass 2: shaded camera render with shadow lookup ---
         TGAImage image(width, height, TGAImage::RGB);
         std::vector<float> zbuffer(width * height, std::numeric_limits<float>::max());
-        for (const auto &tri : shader.triangles()) {
-            rasterize(tri, shader, zbuffer, image);
+        for (auto *obj : objects) {
+            obj->setMVP(cameraMVP);
+            obj->setEye(cam.eye);
+            obj->setLightDir(lightDir);
+            obj->setShadow(&lightZ, width, height, lightMVP, VP, shadowBias);
+            for (size_t f = 0; f < obj->faceCount(); ++f) {
+                rasterize(*obj, obj->primitive(f), VP, zbuffer, image);
+            }
         }
         image.flipVertically();
 

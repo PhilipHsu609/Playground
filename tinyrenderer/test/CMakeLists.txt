@@ -8,6 +8,8 @@ target_sources(
     PRIVATE
     VectorTest.cpp
     MatrixTest.cpp
+    ShadowTest.cpp
+    ShaderTest.cpp
 )
 
 target_link_libraries(

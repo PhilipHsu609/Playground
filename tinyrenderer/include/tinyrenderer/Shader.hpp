@@ -6,41 +6,25 @@
 #include "tinyrenderer/TGAImage.hpp"
 #include "tinyrenderer/Vector.hpp"
 
+#include <array>
 #include <cstddef>
 #include <optional>
-#include <ranges>
+#include <vector>
 
 /**
- * @brief Programmable shader interface.
+ * @brief Shadow-map visibility test.
  *
- * The rasterizer calls vertex() three times per triangle and fragment() once
- * per covered pixel. Concrete shaders cache per-vertex data ("varyings") in
- * member state so fragment() can interpolate them via barycentric coordinates.
+ * Transforms a world-space point into the light's screen space
+ * (lightVP * lightMVP * worldPos), looks up the stored light-space depth
+ * at the resulting pixel, and reports whether the point is occluded
+ * (farther from the light than the stored surface, beyond `bias`).
  *
- * Iterate with `for (const auto& tri : shader.triangles())`.
+ * Orthographic light projection => w == 1, so no perspective divide.
+ * Points projecting outside the shadow map are treated as lit.
  */
-struct IShader {
-    IShader() = default;
-    virtual ~IShader() = default;
-    IShader(const IShader &) = default;
-    IShader(IShader &&) = default;
-    IShader &operator=(const IShader &) = default;
-    IShader &operator=(IShader &&) = default;
-
-    [[nodiscard]] virtual Vec3f vertex(size_t faceIdx, size_t cornerIdx) = 0;
-    [[nodiscard]] virtual TGAColor fragment(const Vec3f &bary) const = 0;
-
-    /// Lazy view over the model's triangles after vertex processing.
-    [[nodiscard]] auto triangles() {
-        return std::views::iota(size_t{0}, faceCount()) |
-               std::views::transform([this](size_t i) {
-                   return Triangle{vertex(i, 0), vertex(i, 1), vertex(i, 2)};
-               });
-    }
-
-  private:
-    [[nodiscard]] virtual size_t faceCount() const = 0;
-};
+[[nodiscard]] bool inShadow(const Vec3f &worldPos, const Mat4f &lightMVP,
+                            const Mat4f &lightVP, const std::vector<float> &shadowMap,
+                            size_t shadowW, size_t shadowH, float bias);
 
 /**
  * @brief Surface description: base color modulated by optional texture maps.
@@ -63,40 +47,101 @@ struct Material {
  * Handles solid-color, textured, glowing, etc. surfaces uniformly. Fragment
  * branches on which maps the Material carries.
  */
-class BlinnPhongShader : public IShader {
+class BlinnPhongShader {
   public:
-    BlinnPhongShader(Model model, Material material, Mat4f mvp, Mat4f vp, Vec3f lightDir,
+    // Per-vertex outputs the rasterizer interpolates. T/B are constant per
+    // triangle (primitive() writes the same basis to all three corners).
+    struct Varyings {
+        Vec3f normal, worldPos, T, B;
+        Vec2f uv;
+
+        Varyings operator*(float s) const {
+            return {.normal = normal * s,
+                    .worldPos = worldPos * s,
+                    .T = T * s,
+                    .B = B * s,
+                    .uv = uv * s};
+        }
+        Varyings operator+(const Varyings &o) const {
+            return {.normal = normal + o.normal,
+                    .worldPos = worldPos + o.worldPos,
+                    .T = T + o.T,
+                    .B = B + o.B,
+                    .uv = uv + o.uv};
+        }
+    };
+
+    BlinnPhongShader(Model model, Material material, Mat4f mvp, Vec3f lightDir,
                      Vec3f eye);
 
-    [[nodiscard]] Vec3f vertex(size_t faceIdx, size_t cornerIdx) override;
-    [[nodiscard]] TGAColor fragment(const Vec3f &bary) const override;
+    [[nodiscard]] std::array<VertexOut<Varyings>, 3> primitive(size_t faceIdx) const;
+    [[nodiscard]] TGAColor fragment(const Varyings &in) const;
+    [[nodiscard]] size_t faceCount() const { return model_.nfaces(); }
 
-    // Per-frame mutable uniforms. Heavy state (model, material textures) stays
-    // owned by the shader; callers swap these scalars between renders.
+    // Per-frame uniforms; callers swap these between renders.
     void setMVP(const Mat4f &mvp) { mvp_ = mvp; }
     void setEye(const Vec3f &eye) { eye_ = eye; }
     void setLightDir(const Vec3f &lightDir) { lightDir_ = lightDir; }
 
-    // Mutable access to the material so animations can vary shininess, toggle
-    // optional textures, recolor, etc., without rebuilding the shader.
+    void setShadow(const std::vector<float> *shadowMap, size_t shadowW, size_t shadowH,
+                   const Mat4f &lightMVP, const Mat4f &lightVP, float bias) {
+        shadowMap_ = shadowMap;
+        shadowW_ = shadowW;
+        shadowH_ = shadowH;
+        lightMVP_ = lightMVP;
+        lightVP_ = lightVP;
+        shadowBias_ = bias;
+    }
+
+    [[nodiscard]] const Model &model() const { return model_; }
+
+    // Mutable so animations can vary the material without rebuilding the shader.
     [[nodiscard]] Material &material() { return material_; }
 
   private:
-    [[nodiscard]] size_t faceCount() const override { return model_.nfaces(); }
-
-    // Blinn-Phong lighting intensity at a shaded point. Returns a factor in
-    // [0, 1] that modulates the surface albedo.
+    // Lighting intensity in [0, 1] that modulates the albedo.
     [[nodiscard]] float blinnPhongFactor(const Vec3f &n, const Vec3f &halfway) const;
 
     // uniforms
     Model model_;
     Material material_;
-    Mat4f mvp_, vp_;
+    Mat4f mvp_;
     Vec3f lightDir_;
     Vec3f eye_;
 
-    // varyings (one column per triangle vertex)
-    Mat3f normals_;
-    Mat3f worldPositions_;
-    Mat<float, 2, 3> texCoords_;
+    // Shadow-map uniforms. When shadowMap_ is null, shading ignores shadows.
+    const std::vector<float> *shadowMap_ = nullptr;
+    size_t shadowW_ = 0;
+    size_t shadowH_ = 0;
+    Mat4f lightMVP_, lightVP_;
+    float shadowBias_ = 0.f;
+};
+
+/**
+ * @brief Depth-only shader for the shadow-map pass.
+ *
+ * Projects under the light's MVP; only the depth buffer rasterize() fills
+ * matters. Borrows its model (non-owning). The depth it stores must stay
+ * comparable to the raw clip.z() that inShadow() reads back, which requires the
+ * viewport to leave z untouched.
+ */
+class DepthShader {
+  public:
+    struct Varyings {
+        Varyings operator*(float /*s*/) const { return {}; }
+        Varyings operator+(const Varyings & /*o*/) const { return {}; }
+    };
+
+    DepthShader(const Model &model, Mat4f lightMVP)
+        : model_(&model), lightMVP_(lightMVP) {}
+
+    [[nodiscard]] std::array<VertexOut<Varyings>, 3> primitive(size_t faceIdx) const;
+    [[nodiscard]] static TGAColor fragment(const Varyings & /*in*/) {
+        return BLACK_COLOR;
+    }
+    [[nodiscard]] size_t faceCount() const { return model_->nfaces(); }
+
+  private:
+    const Model *model_;
+    Mat4f lightMVP_;
 };
