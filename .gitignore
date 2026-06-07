@@ -10,3 +10,6 @@ container/rootfs/
 .cache/
 compile_commands.json
 tinyrenderer/output.tga
+
+# superpower
+**/docs/superpowers/
