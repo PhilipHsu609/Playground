@@ -153,3 +153,22 @@ Hard shadows via **two passes**, reusing the depth buffer:
 - **Perspective-correct interpolation** — screen-space barycentrics interpolate attributes wrong (textures warp on the floor). Reweight by $1/w$ and renormalize. Depth is exempt: NDC $z$ is already linear in screen space.
 - **Rasterizer owns interpolation** — shaders return clip-space corners via `primitive(face)` and shade via `fragment(Varyings)`; the rasterizer does the divide, viewport, depth test, and $1/w$-correct blend.
 - **`IShader` → `Shader` concept** — the varying type now flows through the call, so dispatch is a template + concept, not runtime polymorphism. TBN is constant per triangle, so it's computed once in `primitive()` and baked into all three `Varyings` corners.
+
+## Lesson 10: Ambient Occlusion
+
+![Brute-force ambient occlusion map of the Diablo model](docs/images/lesson10_brute_ao.png)
+![Final render with brute-force ambient occlusion](docs/images/lesson10_brute_final.png)
+
+A geometry-aware replacement for the flat ambient term: "how much of the sky can this point see?" Darkens crevices and contact points; modulates **only** the ambient term (direct light, specular, and cast shadow untouched). Not path tracing — AO rays carry a visibility bit, not color, so there is no color bleeding.
+
+**Brute-force** — average many shadow-style visibility tests over the hemisphere. Each direction is a depth pass (`DepthShader`) + `inShadow()` test from Lesson 9; $ao = \text{visible} / N$. Physically motivated, slow ($N$ renders), bakes once for a static camera.
+
+**SSAO** — sample the camera depth buffer in a normal-oriented hemisphere kernel; the fraction of samples behind stored geometry is the occlusion. Real-time (reuses one depth buffer), but noisy and blind to off-screen geometry.
+
+![SSAO map of the Diablo model](docs/images/lesson10_ssao_ao.png)
+![Final render with SSAO](docs/images/lesson10_ssao_final.png)
+
+- **G-buffer** — both methods need per-pixel world position (+ normal for SSAO), captured once from the camera into a screen-space buffer.
+- **`gl_FragCoord`** — `fragment()` gains pixel $(x, y)$ so it can look up the screen-space AO buffer, mirroring how a deferred lighting pass indexes a G-buffer.
+- Shading: `factor = min(1, AMBIENT * ao + direct)`. AO-null ⇒ $ao = 1$, identical to Lesson 9.
+- The raw AO maps show the contrast best: brute-force is smooth; SSAO is noisier with edge halos (no range check / bias — the artifacts that motivate HBAO and a blur pass).
