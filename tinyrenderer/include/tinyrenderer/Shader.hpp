@@ -7,6 +7,7 @@
 #include "tinyrenderer/Vector.hpp"
 
 #include <array>
+#include <cassert>
 #include <cstddef>
 #include <optional>
 #include <vector>
@@ -93,14 +94,21 @@ class BlinnPhongShader {
         shadowBias_ = bias;
     }
 
+    void setAO(const std::vector<float> *ao, size_t aoW, size_t aoH) {
+        assert(ao == nullptr || ao->size() == aoW * aoH);
+        aoBuffer_ = ao;
+        aoW_ = aoW;
+        aoH_ = aoH;
+    }
+
     [[nodiscard]] const Model &model() const { return model_; }
 
     // Mutable so animations can vary the material without rebuilding the shader.
     [[nodiscard]] Material &material() { return material_; }
 
   private:
-    // Lighting intensity in [0, 1] that modulates the albedo.
-    [[nodiscard]] float blinnPhongFactor(const Vec3f &n, const Vec3f &halfway) const;
+    // Direct lighting only (diffuse + specular, no ambient, no clamp).
+    [[nodiscard]] float directFactor(const Vec3f &n, const Vec3f &halfway) const;
 
     // uniforms
     Model model_;
@@ -115,6 +123,11 @@ class BlinnPhongShader {
     size_t shadowH_ = 0;
     Mat4f lightMVP_, lightVP_;
     float shadowBias_ = 0.f;
+
+    // Ambient-occlusion buffer (screen-space). Null => ambient unscaled.
+    const std::vector<float> *aoBuffer_ = nullptr;
+    size_t aoW_ = 0;
+    size_t aoH_ = 0;
 };
 
 /**

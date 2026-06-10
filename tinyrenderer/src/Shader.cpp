@@ -96,13 +96,13 @@ BlinnPhongShader::primitive(size_t faceIdx) const {
     return out;
 }
 
-float BlinnPhongShader::blinnPhongFactor(const Vec3f &n, const Vec3f &halfway) const {
+float BlinnPhongShader::directFactor(const Vec3f &n, const Vec3f &halfway) const {
     const float diffuse = std::max(0.f, dot(n, lightDir_));
     const float specular = std::pow(std::max(0.f, dot(n, halfway)), material_.shininess);
-    return std::min(1.f, AMBIENT + diffuse + specular);
+    return diffuse + specular;
 }
 
-TGAColor BlinnPhongShader::fragment(const Varyings &in, int /*x*/, int /*y*/) const {
+TGAColor BlinnPhongShader::fragment(const Varyings &in, int x, int y) const {
     Vec3f n = in.normal.normalize();
     const Vec3f viewDir = (eye_ - in.worldPos).normalize();
 
@@ -122,11 +122,16 @@ TGAColor BlinnPhongShader::fragment(const Varyings &in, int /*x*/, int /*y*/) co
         albedo = albedo * sample(*material_.diffuse, in.uv);
     }
 
-    float factor = blinnPhongFactor(n, halfway);
+    float direct = directFactor(n, halfway);
     if (shadowMap_ != nullptr && inShadow(in.worldPos, lightMVP_, lightVP_, *shadowMap_,
                                           shadowW_, shadowH_, shadowBias_)) {
-        factor = AMBIENT; // keep only ambient; drop diffuse + specular
+        direct = 0.f; // shadow drops direct light; ambient (with AO) remains
     }
+    const float ao =
+        aoBuffer_ != nullptr
+            ? (*aoBuffer_)[static_cast<size_t>(y) * aoW_ + static_cast<size_t>(x)]
+            : 1.f;
+    const float factor = std::min(1.f, AMBIENT * ao + direct);
 
     TGAColor lit = albedo * factor;
     if (material_.glow) {

@@ -82,3 +82,18 @@ TEST(AmbientOcclusion, CaptureGBufferMarksCoverage) {
     // A pixel in the far corner is uncovered.
     EXPECT_EQ(g.covered[W * H - 1], 0);
 }
+
+// With no AO buffer bound, AMBIENT * 1 + direct == old AMBIENT + direct, so the
+// shader output is unchanged. A fully unlit fragment (light perpendicular to the
+// normal) returns exactly the ambient floor on each channel: 255 * 0.1 = 25.
+TEST(AmbientOcclusion, NullAoLeavesAmbientFloor) {
+    const BlinnPhongShader shader(Model("obj/floor.obj"), Material{},
+                                  Mat4f::identity(), Vec3f(0.f, 0.f, 1.f),
+                                  Vec3f(0.f, 0.f, 1.f));
+    // Normal perpendicular to the light => diffuse 0; no specular; no maps.
+    using V = BlinnPhongShader::Varyings;
+    const V in{.normal = Vec3f(0.f, 1.f, 0.f), .worldPos = Vec3f(0.f, 0.f, 0.f),
+               .T = Vec3f(), .B = Vec3f(), .uv = Vec2f()};
+    const TGAColor c = shader.fragment(in, 0, 0);
+    EXPECT_EQ(static_cast<int>(c.r), 25); // 255 * AMBIENT(0.1) truncated
+}
