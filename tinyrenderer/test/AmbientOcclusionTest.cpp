@@ -124,3 +124,31 @@ TEST(AmbientOcclusion, BakeAoNoOccludersIsFullyExposed) {
         EXPECT_NEAR(ao[i], 1.f, 1e-5f);
     }
 }
+
+// A single covered pixel whose camera-depth buffer reports every neighbor at
+// the far plane (max depth) has no occluders, so SSAO returns ~1.
+TEST(AmbientOcclusion, SsaoOpenSurfaceIsUnoccluded) {
+    constexpr size_t W = 8;
+    constexpr size_t H = 8;
+    const GBuffer g{.worldPos = std::vector<Vec3f>(W * H, Vec3f(0.f, 0.f, 0.f)),
+                    .normal = std::vector<Vec3f>(W * H, Vec3f(0.f, 0.f, 1.f)),
+                    .covered = std::vector<char>(W * H, 1),
+                    .w = W,
+                    .h = H};
+    // Every stored depth is "far" (max), so any sample is in front => unoccluded.
+    const std::vector<float> depth(W * H, std::numeric_limits<float>::max());
+
+    Mat4f vp;
+    vp[0, 0] = W / 2.f;
+    vp[1, 1] = H / 2.f;
+    vp[2, 2] = 1.f;
+    vp[0, 3] = W / 2.f;
+    vp[1, 3] = H / 2.f;
+    vp[3, 3] = 1.f;
+
+    const std::vector<float> ao =
+        computeSSAO(g, depth, Mat4f::identity(), vp, 16, 0.5f, 5);
+
+    const size_t idx = static_cast<size_t>(4) * W + 4;
+    EXPECT_GT(ao[idx], 0.9f);
+}

@@ -152,3 +152,68 @@ std::vector<float> bakeAO(const GBuffer &g, const std::vector<AoOccluder> &occlu
     }
     return ao;
 }
+
+std::vector<float> computeSSAO(const GBuffer &g, const std::vector<float> &cameraDepth,
+                               const Mat4f &cameraMVP, const Mat4f &viewport,
+                               int numSamples, float radius, unsigned seed) {
+    const size_t n = g.w * g.h;
+    std::mt19937 rng(seed);
+
+    // Fixed kernel of hemisphere offsets (around +z), length-scaled to cluster
+    // near the origin.
+    std::vector<Vec3f> kernel(static_cast<size_t>(numSamples));
+    std::uniform_real_distribution<float> u(0.f, 1.f);
+    for (int i = 0; i < numSamples; ++i) {
+        // randomHemisphereDir's hemisphere axis is y; move it to z so k.z is the
+        // along-normal term the TBN rotation below expects.
+        const Vec3f s = randomHemisphereDir(rng);
+        const Vec3f reoriented(s.x(), s.z(), s.y());
+        const float scale = u(rng);
+        kernel[static_cast<size_t>(i)] = reoriented * (radius * scale);
+    }
+
+    std::vector<float> ao(n, 1.f);
+    for (size_t p = 0; p < n; ++p) {
+        if (g.covered[p] == 0) {
+            continue;
+        }
+        const Vec3f origin = g.worldPos[p];
+        const Vec3f normal = g.normal[p];
+        // Basis around the pixel normal (Gram-Schmidt off an arbitrary axis).
+        const Vec3f ref =
+            std::abs(normal.z()) < 0.99f ? Vec3f(0.f, 0.f, 1.f) : Vec3f(1.f, 0.f, 0.f);
+        const Vec3f tangent = cross(ref, normal).normalize();
+        const Vec3f bitangent = cross(normal, tangent);
+
+        int occluded = 0;
+        for (const Vec3f &k : kernel) {
+            const Vec3f sampleDir =
+                tangent * k.x() + bitangent * k.y() + normal * k.z();
+            const Vec3f samplePos = origin + sampleDir;
+            const Vec4f clip =
+                cameraMVP * Vec4f(samplePos.x(), samplePos.y(), samplePos.z(), 1.f);
+            if (clip.w() == 0.f) {
+                continue;
+            }
+            const Vec4f ndc = clip / clip.w();
+            const Vec4f screen = viewport * ndc;
+            // Bounds-check on the float coords (mirrors inShadow): a negative
+            // coord would truncate into a valid index rather than be rejected.
+            const float fx = screen.x();
+            const float fy = screen.y();
+            if (fx < 0.f || fy < 0.f || fx >= static_cast<float>(g.w) ||
+                fy >= static_cast<float>(g.h)) {
+                continue; // off-screen samples do not occlude
+            }
+            const float stored =
+                cameraDepth[static_cast<size_t>(fy) * g.w + static_cast<size_t>(fx)];
+            // Smaller z == closer. Occluded if stored geometry is closer than
+            // the sample's own depth.
+            if (stored < ndc.z()) {
+                occluded += 1;
+            }
+        }
+        ao[p] = 1.f - static_cast<float>(occluded) / static_cast<float>(numSamples);
+    }
+    return ao;
+}

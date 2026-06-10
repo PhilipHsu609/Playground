@@ -55,3 +55,16 @@ struct AoLightParams {
                                         const Mat4f &viewport,
                                         const AoLightParams &light, int numDirs,
                                         unsigned seed);
+
+// Screen-space AO: for each covered pixel, sample a hemisphere of nearby points
+// (oriented by the pixel normal) and count how many fall behind the stored
+// camera depth. cameraMVP/viewport project a world sample to a screen pixel +
+// comparable depth. Returns one value per pixel in [0, 1].
+//
+// No range check or depth bias: depth discontinuities will halo and flat
+// surfaces may show mild acne. bakeAO gives artifact-free AO at higher cost.
+[[nodiscard]] std::vector<float> computeSSAO(const GBuffer &g,
+                                             const std::vector<float> &cameraDepth,
+                                             const Mat4f &cameraMVP,
+                                             const Mat4f &viewport, int numSamples,
+                                             float radius, unsigned seed);
