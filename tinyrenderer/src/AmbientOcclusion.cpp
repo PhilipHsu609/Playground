@@ -1,9 +1,47 @@
 #include "tinyrenderer/AmbientOcclusion.hpp"
+#include "tinyrenderer/Model.hpp"
 #include "tinyrenderer/Shader.hpp"
+#include "tinyrenderer/TGAImage.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
+#include <cstdint>
+#include <limits>
 #include <numbers>
+
+namespace {
+
+Mat4f lookAt(const Vec3f &eye, const Vec3f &center, const Vec3f &up) {
+    const Vec3f z = (eye - center).normalize();
+    const Vec3f x = cross(up, z).normalize();
+    const Vec3f y = cross(z, x);
+    Mat4f m;
+    for (size_t i = 0; i < 3; ++i) {
+        m[0, i] = x[i];
+        m[1, i] = y[i];
+        m[2, i] = z[i];
+    }
+    m[0, 3] = -dot(x, eye);
+    m[1, 3] = -dot(y, eye);
+    m[2, 3] = -dot(z, eye);
+    m[3, 3] = 1.f;
+    return m;
+}
+
+// Square ortho box [-halfExtent, halfExtent] -> [-1, 1] on both x and y;
+// assumes a square viewport (callers with g.w == g.h).
+Mat4f ortho(float halfExtent, float n, float f) {
+    Mat4f m;
+    m[0, 0] = 1.f / halfExtent;
+    m[1, 1] = 1.f / halfExtent;
+    m[2, 2] = -2.f / (f - n);
+    m[2, 3] = -(f + n) / (f - n);
+    m[3, 3] = 1.f;
+    return m;
+}
+
+} // namespace
 
 Vec3f randomHemisphereDir(std::mt19937 &rng) {
     std::uniform_real_distribution<float> u(0.f, 1.f);
@@ -66,4 +104,51 @@ void captureGBuffer(
             g.covered[idx] = 1;
         }
     }
+}
+
+std::vector<float> bakeAO(const GBuffer &g, const std::vector<AoOccluder> &occluders,
+                          const Mat4f &viewport, const AoLightParams &light, int numDirs,
+                          unsigned seed) {
+    assert(g.w == g.h); // ortho() builds a square light box
+    const size_t n = g.w * g.h;
+    std::vector<int> visible(n, 0);
+    std::mt19937 rng(seed);
+
+    const Mat4f proj = ortho(light.orthoHalf, light.lightNear, light.lightFar);
+    TGAImage scratch(static_cast<std::uint16_t>(g.w), static_cast<std::uint16_t>(g.h),
+                     TGAImage::RGB);
+
+    for (int k = 0; k < numDirs; ++k) {
+        const Vec3f dir = randomHemisphereDir(rng);
+        // A non-parallel up vector keeps the look-at well-defined for any dir.
+        const Vec3f up =
+            std::abs(dir.y()) > 0.99f ? Vec3f(0.f, 0.f, 1.f) : Vec3f(0.f, 1.f, 0.f);
+        const Mat4f dirMVP = proj * lookAt(dir * light.dist, Vec3f(0.f, 0.f, 0.f), up);
+
+        std::vector<float> depthMap(n, std::numeric_limits<float>::max());
+        for (const AoOccluder &occ : occluders) {
+            const DepthShader depth(*occ.model, dirMVP);
+            for (size_t face = 0; face < depth.faceCount(); ++face) {
+                rasterize(depth, depth.primitive(face), viewport, depthMap, scratch);
+            }
+        }
+
+        for (size_t p = 0; p < n; ++p) {
+            if (g.covered[p] == 0) {
+                continue;
+            }
+            if (!inShadow(g.worldPos[p], dirMVP, viewport, depthMap, g.w, g.h,
+                          light.bias)) {
+                visible[p] += 1;
+            }
+        }
+    }
+
+    std::vector<float> ao(n, 1.f);
+    for (size_t p = 0; p < n; ++p) {
+        if (g.covered[p] != 0) {
+            ao[p] = static_cast<float>(visible[p]) / static_cast<float>(numDirs);
+        }
+    }
+    return ao;
 }

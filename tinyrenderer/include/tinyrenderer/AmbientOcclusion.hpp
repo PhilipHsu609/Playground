@@ -2,6 +2,7 @@
 
 #include "tinyrenderer/Drawer.hpp"
 #include "tinyrenderer/Matrix.hpp"
+#include "tinyrenderer/Model.hpp"
 #include "tinyrenderer/Shader.hpp"
 #include "tinyrenderer/Vector.hpp"
 
@@ -31,3 +32,26 @@ struct GBuffer {
 void captureGBuffer(
     const std::array<VertexOut<BlinnPhongShader::Varyings>, 3> &prim,
     const Mat4f &viewport, std::vector<float> &zbuffer, GBuffer &g);
+
+// One model bound as an occluder for the AO depth passes.
+struct AoOccluder {
+    const Model *model;
+};
+
+// Light-camera box for the hemisphere depth passes (reuses Lesson 9 values).
+struct AoLightParams {
+    float orthoHalf;
+    float lightNear;
+    float lightFar;
+    float dist;
+    float bias;
+};
+
+// Brute-force AO: for each of numDirs hemisphere directions, render a depth map
+// and test each covered camera pixel's visibility; average. Returns one value
+// per pixel in [0, 1] (1 = fully exposed). Uncovered pixels return 1.
+[[nodiscard]] std::vector<float> bakeAO(const GBuffer &g,
+                                        const std::vector<AoOccluder> &occluders,
+                                        const Mat4f &viewport,
+                                        const AoLightParams &light, int numDirs,
+                                        unsigned seed);

@@ -97,3 +97,30 @@ TEST(AmbientOcclusion, NullAoLeavesAmbientFloor) {
     const TGAColor c = shader.fragment(in, 0, 0);
     EXPECT_EQ(static_cast<int>(c.r), 25); // 255 * AMBIENT(0.1) truncated
 }
+
+// With no occluders, no direction is ever blocked, so AO is 1 everywhere it's
+// covered. (The depth maps are empty, so inShadow always reports "lit".)
+TEST(AmbientOcclusion, BakeAoNoOccludersIsFullyExposed) {
+    constexpr size_t W = 8;
+    constexpr size_t H = 8;
+    const GBuffer g{.worldPos = std::vector<Vec3f>(W * H, Vec3f(0.f, 0.f, 0.f)),
+                    .normal = std::vector<Vec3f>(W * H, Vec3f(0.f, 1.f, 0.f)),
+                    .covered = std::vector<char>(W * H, 1),
+                    .w = W,
+                    .h = H};
+    Mat4f vp;
+    vp[0, 0] = W / 2.f;
+    vp[1, 1] = H / 2.f;
+    vp[2, 2] = 1.f;
+    vp[0, 3] = W / 2.f;
+    vp[1, 3] = H / 2.f;
+    vp[3, 3] = 1.f;
+
+    const AoLightParams light{.orthoHalf = 2.f, .lightNear = 0.1f, .lightFar = 10.f,
+                              .dist = 4.f, .bias = 0.01f};
+    const std::vector<float> ao = bakeAO(g, {}, vp, light, 16, 99);
+
+    for (size_t i = 0; i < W * H; ++i) {
+        EXPECT_NEAR(ao[i], 1.f, 1e-5f);
+    }
+}
