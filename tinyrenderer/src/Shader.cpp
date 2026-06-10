@@ -102,7 +102,7 @@ float BlinnPhongShader::blinnPhongFactor(const Vec3f &n, const Vec3f &halfway) c
     return std::min(1.f, AMBIENT + diffuse + specular);
 }
 
-TGAColor BlinnPhongShader::fragment(const Varyings &in) const {
+TGAColor BlinnPhongShader::fragment(const Varyings &in, int /*x*/, int /*y*/) const {
     Vec3f n = in.normal.normalize();
     const Vec3f viewDir = (eye_ - in.worldPos).normalize();
 

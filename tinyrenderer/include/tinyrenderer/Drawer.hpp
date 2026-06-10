@@ -28,15 +28,15 @@ struct VertexOut {
 };
 
 // A shader the rasterizer can drive: primitive(face) returns the three corners,
-// fragment(vary) shades a pixel.
+// fragment(vary, x, y) shades the pixel at screen (x, y).
 template <typename S>
 concept Shader = Blendable<typename S::Varyings> &&
-                 requires(const S s, size_t f, const typename S::Varyings v) {
+                 requires(const S s, size_t f, const typename S::Varyings v, int x, int y) {
                      { s.faceCount() } -> std::convertible_to<size_t>;
                      {
                          s.primitive(f)
                      } -> std::same_as<std::array<VertexOut<typename S::Varyings>, 3>>;
-                     { s.fragment(v) } -> std::same_as<TGAColor>;
+                     { s.fragment(v, x, y) } -> std::same_as<TGAColor>;
                  };
 
 [[nodiscard]] Vec3f barycentric(Vec2f p, Vec2f t0, Vec2f t1, Vec2f t2);
@@ -106,7 +106,7 @@ void rasterize(const S &shader,
                 prim[0].vary * pc.x() + prim[1].vary * pc.y() + prim[2].vary * pc.z();
 
             zbuffer[index] = z;
-            frameBuffer.set(x, y, shader.fragment(vary));
+            frameBuffer.set(x, y, shader.fragment(vary, x, y));
         }
     }
 }

@@ -75,7 +75,7 @@ class BlinnPhongShader {
                      Vec3f eye);
 
     [[nodiscard]] std::array<VertexOut<Varyings>, 3> primitive(size_t faceIdx) const;
-    [[nodiscard]] TGAColor fragment(const Varyings &in) const;
+    [[nodiscard]] TGAColor fragment(const Varyings &in, int x, int y) const;
     [[nodiscard]] size_t faceCount() const { return model_.nfaces(); }
 
     // Per-frame uniforms; callers swap these between renders.
@@ -136,7 +136,8 @@ class DepthShader {
         : model_(&model), lightMVP_(lightMVP) {}
 
     [[nodiscard]] std::array<VertexOut<Varyings>, 3> primitive(size_t faceIdx) const;
-    [[nodiscard]] static TGAColor fragment(const Varyings & /*in*/) {
+    [[nodiscard]] static TGAColor fragment(const Varyings & /*in*/, int /*x*/,
+                                           int /*y*/) {
         return BLACK_COLOR;
     }
     [[nodiscard]] size_t faceCount() const { return model_->nfaces(); }
