@@ -10,6 +10,7 @@ target_sources(
     MatrixTest.cpp
     ShadowTest.cpp
     ShaderTest.cpp
+    AmbientOcclusionTest.cpp
 )
 
 target_link_libraries(

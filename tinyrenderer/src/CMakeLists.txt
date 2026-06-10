@@ -8,6 +8,7 @@ target_sources(
     Drawer.cpp
     Model.cpp
     Shader.cpp
+    AmbientOcclusion.cpp
 )
 
 target_include_directories(
