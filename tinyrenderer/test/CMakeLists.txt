@@ -21,4 +21,4 @@ target_link_libraries(
 )
 
 include(GoogleTest)
-gtest_discover_tests(${TEST_TARGET})
+gtest_discover_tests(${TEST_TARGET} WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
