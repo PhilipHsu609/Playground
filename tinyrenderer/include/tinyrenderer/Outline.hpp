@@ -10,3 +10,8 @@
 // bands=3 -> {0.333, 0.667, 1.0} (the lesson's thresholds). intensity 0 maps to
 // the darkest band (1/bands), never pure black. Precondition: bands >= 1.
 [[nodiscard]] float quantize(float intensity, int bands);
+
+// Per-pixel Sobel gradient magnitude sqrt(Gx^2 + Gy^2) over a single-channel
+// w*h buffer (row-major). Border pixels (no full 3x3 neighborhood) get 0.
+[[nodiscard]] std::vector<float> sobelMagnitude(const std::vector<float> &buf, size_t w,
+                                                size_t h);
