@@ -172,3 +172,17 @@ A geometry-aware replacement for the flat ambient term: "how much of the sky can
 - **`gl_FragCoord`** — `fragment()` gains pixel $(x, y)$ so it can look up the screen-space AO buffer, mirroring how a deferred lighting pass indexes a G-buffer.
 - Shading: `factor = min(1, AMBIENT * ao + direct)`. AO-null ⇒ $ao = 1$, identical to Lesson 9.
 - The raw AO maps show the contrast best: brute-force is smooth; SSAO is noisier with edge halos (no range check / bias — the artifacts that motivate HBAO and a blur pass).
+
+## Lesson 11: Toon (Cel) Shading
+
+![Toon-shaded Diablo model with banded lighting and inked outline, light orbiting](docs/images/lesson11_toon.gif)
+
+A cartoon look from two cheap pieces:
+
+**Banded lighting** — quantize smooth Lambert diffuse into a few flat levels. `quantize(intensity, bands)` snaps $[0,1]$ into `bands` steps (3 → {0.33, 0.66, 1.0}, the lesson's thresholds; intensity 0 maps to the darkest band, never pure black). A dedicated `ToonShader` does diffuse-only shading — no specular/shadow/AO/normal-map — and that omission *is* the flat look.
+
+**Inked outline** — a screen-space post-pass. `sobelMagnitude` runs the 3×3 Sobel kernels ($\sqrt{G_x^2 + G_y^2}$) over the **depth buffer**; `applyOutline` normalizes depth to $[0,1]$ (background → 1.0), then inks black any pixel whose gradient exceeds a threshold. The finite→background depth jump at the silhouette lights up; flat interior depth stays quiet. Run before the vertical flip so depth and image indices line up.
+
+- **Depth-only edges** — catches silhouettes and big depth jumps (limb over body), not interior creases (those need a normal buffer; out of scope).
+- **Flat backdrop** — the demo fills the background with a light color so the black silhouette outline reads (black-on-black would hide it) — the classic cel/comic framing.
+- The bands shift as the light orbits; the outline tracks the silhouette.
