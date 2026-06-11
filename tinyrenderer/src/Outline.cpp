@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <limits>
 
 float quantize(float intensity, int bands) {
     assert(bands >= 1);
@@ -33,4 +34,38 @@ std::vector<float> sobelMagnitude(const std::vector<float> &buf, size_t w, size_
         }
     }
     return mag;
+}
+
+void applyOutline(TGAImage &image, const std::vector<float> &depth, size_t w, size_t h,
+                  float threshold) {
+    assert(depth.size() == w * h);
+    assert(image.getWidth() == w && image.getHeight() == h);
+    constexpr float bgSentinel = 1e30f; // depth at/above this is background
+
+    // Min/max of covered (finite-range) depths, for normalization.
+    float minZ = std::numeric_limits<float>::max();
+    float maxZ = std::numeric_limits<float>::lowest();
+    for (const float z : depth) {
+        if (z < bgSentinel) {
+            minZ = std::min(minZ, z);
+            maxZ = std::max(maxZ, z);
+        }
+    }
+    const float range = maxZ - minZ;
+
+    std::vector<float> normalized(w * h, 1.f);
+    for (size_t i = 0; i < w * h; ++i) {
+        if (depth[i] < bgSentinel) {
+            normalized[i] = range > 0.f ? (depth[i] - minZ) / range : 0.f;
+        }
+    }
+
+    const std::vector<float> mag = sobelMagnitude(normalized, w, h);
+    for (size_t y = 0; y < h; ++y) {
+        for (size_t x = 0; x < w; ++x) {
+            if (mag[y * w + x] > threshold) {
+                image.set(static_cast<int>(x), static_cast<int>(y), BLACK_COLOR);
+            }
+        }
+    }
 }

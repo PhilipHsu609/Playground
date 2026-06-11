@@ -15,3 +15,11 @@
 // w*h buffer (row-major). Border pixels (no full 3x3 neighborhood) get 0.
 [[nodiscard]] std::vector<float> sobelMagnitude(const std::vector<float> &buf, size_t w,
                                                 size_t h);
+
+// Ink dark silhouette edges onto `image` using `depth` (w*h, row-major,
+// smaller z = closer, background at float::max). Normalizes depth to [0,1]
+// (background -> 1.0, covered pixels remapped by their min/max), runs Sobel,
+// and sets pixels whose magnitude exceeds `threshold` to black. `image` and
+// `depth` must share orientation (apply before any vertical flip).
+void applyOutline(TGAImage &image, const std::vector<float> &depth, size_t w, size_t h,
+                  float threshold);

@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <vector>
 
 TEST(Quantize, ThreeBandsMatchLesson) {
@@ -81,4 +82,61 @@ TEST(SobelMagnitude, HorizontalStepIsEdge) {
     EXPECT_GT(mag[2 * W + 2], 1.f);
     // A pixel in the flat top region (interior row 1) is ~0.
     EXPECT_NEAR(mag[1 * W + 2], 0.f, 1e-5f);
+}
+
+TEST(ApplyOutline, InksSilhouetteNotInterior) {
+    constexpr size_t W = 16;
+    constexpr size_t H = 16;
+    // A covered block (z = 0) in the middle of a far-background (float::max).
+    std::vector<float> depth(W * H, std::numeric_limits<float>::max());
+    for (size_t y = 4; y < 12; ++y) {
+        for (size_t x = 4; x < 12; ++x) {
+            depth[y * W + x] = 0.f;
+        }
+    }
+    TGAImage image(W, H, TGAImage::RGB);
+    for (size_t y = 0; y < H; ++y) {
+        for (size_t x = 0; x < W; ++x) {
+            image.set(static_cast<int>(x), static_cast<int>(y), TGAColor(200, 200, 200));
+        }
+    }
+
+    applyOutline(image, depth, W, H, 0.1f);
+
+    // A pixel on the block's edge (depth jump in its 3x3) is inked black.
+    const TGAColor edge = image.get(4, 7);
+    EXPECT_EQ(static_cast<int>(edge.r), 0);
+    // A pixel deep inside the block (no jump nearby) keeps its color.
+    const TGAColor interior = image.get(7, 7);
+    EXPECT_EQ(static_cast<int>(interior.r), 200);
+    // A pixel deep in the background keeps its color.
+    const TGAColor bg = image.get(0, 0);
+    EXPECT_EQ(static_cast<int>(bg.r), 200);
+}
+
+TEST(ApplyOutline, NormalizesVaryingCoveredDepths) {
+    // Two covered blocks at distinct depths (0.2, 0.8) on a far background, so
+    // range > 0 and the (z-min)/range division path runs. The silhouette
+    // against the background still inks.
+    constexpr size_t W = 16;
+    constexpr size_t H = 16;
+    std::vector<float> depth(W * H, std::numeric_limits<float>::max());
+    for (size_t y = 4; y < 12; ++y) {
+        for (size_t x = 4; x < 12; ++x) {
+            depth[y * W + x] = x < 8 ? 0.2f : 0.8f;
+        }
+    }
+    TGAImage image(W, H, TGAImage::RGB);
+    for (size_t y = 0; y < H; ++y) {
+        for (size_t x = 0; x < W; ++x) {
+            image.set(static_cast<int>(x), static_cast<int>(y), TGAColor(200, 200, 200));
+        }
+    }
+
+    applyOutline(image, depth, W, H, 0.1f);
+
+    // The block's outer edge against the background is inked.
+    EXPECT_EQ(static_cast<int>(image.get(4, 7).r), 0);
+    // A pixel deep in the background keeps its color.
+    EXPECT_EQ(static_cast<int>(image.get(0, 0).r), 200);
 }
