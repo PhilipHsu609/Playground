@@ -10,6 +10,7 @@
 #include <cassert>
 #include <cstddef>
 #include <optional>
+#include <utility>
 #include <vector>
 
 /**
@@ -158,4 +159,45 @@ class DepthShader {
   private:
     const Model *model_;
     Mat4f lightMVP_;
+};
+
+/**
+ * @brief Cel (toon) shader: diffuse Lambert quantized into flat bands.
+ *
+ * Deliberately minimal — diffuse-only, no specular/shadow/AO/normal-mapping.
+ * That omission is the flat cartoon look. Outlines are added separately by
+ * applyOutline() as a post-pass.
+ */
+class ToonShader {
+  public:
+    struct Varyings {
+        Vec3f normal;
+        Vec2f uv;
+
+        Varyings operator*(float s) const { return {.normal = normal * s, .uv = uv * s}; }
+        Varyings operator+(const Varyings &o) const {
+            return {.normal = normal + o.normal, .uv = uv + o.uv};
+        }
+    };
+
+    ToonShader(Model model, Material material, Mat4f mvp, Vec3f lightDir, int bands)
+        : model_(std::move(model)), material_(std::move(material)), mvp_(mvp),
+          lightDir_(lightDir), bands_(bands) {
+        assert(bands_ >= 1);
+    }
+
+    [[nodiscard]] std::array<VertexOut<Varyings>, 3> primitive(size_t faceIdx) const;
+    [[nodiscard]] TGAColor fragment(const Varyings &in, int x, int y) const;
+    [[nodiscard]] size_t faceCount() const { return model_.nfaces(); }
+
+    void setMVP(const Mat4f &mvp) { mvp_ = mvp; }
+    void setLightDir(const Vec3f &lightDir) { lightDir_ = lightDir; }
+    [[nodiscard]] const Model &model() const { return model_; }
+
+  private:
+    Model model_;
+    Material material_;
+    Mat4f mvp_;
+    Vec3f lightDir_;
+    int bands_;
 };

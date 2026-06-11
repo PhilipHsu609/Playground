@@ -1,5 +1,7 @@
 #include "tinyrenderer/Shader.hpp"
 
+#include "tinyrenderer/Outline.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <utility>
@@ -148,4 +150,27 @@ DepthShader::primitive(size_t faceIdx) const {
         out[c] = {.clip = clipVertex(model_->vert(faceIdx, c), lightMVP_), .vary = {}};
     }
     return out;
+}
+
+std::array<VertexOut<ToonShader::Varyings>, 3>
+ToonShader::primitive(size_t faceIdx) const {
+    std::array<VertexOut<Varyings>, 3> out;
+    for (size_t c = 0; c < 3; ++c) {
+        const Vec3f &v = model_.vert(faceIdx, c);
+        out[c] = {.clip = clipVertex(v, mvp_),
+                  .vary = {.normal = model_.normal(faceIdx, c),
+                           .uv = model_.texCoord(faceIdx, c)}};
+    }
+    return out;
+}
+
+TGAColor ToonShader::fragment(const Varyings &in, int /*x*/, int /*y*/) const {
+    const Vec3f n = in.normal.normalize();
+    const float diffuse = std::max(0.f, dot(n, lightDir_));
+    const float band = quantize(diffuse, bands_);
+    TGAColor albedo = material_.baseColor;
+    if (material_.diffuse) {
+        albedo = albedo * sample(*material_.diffuse, in.uv);
+    }
+    return albedo * band;
 }

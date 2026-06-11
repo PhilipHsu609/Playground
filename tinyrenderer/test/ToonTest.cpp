@@ -1,7 +1,9 @@
 #include "tinyrenderer/Outline.hpp"
+#include "tinyrenderer/Shader.hpp"
 
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <limits>
 #include <vector>
 
@@ -139,4 +141,27 @@ TEST(ApplyOutline, NormalizesVaryingCoveredDepths) {
     EXPECT_EQ(static_cast<int>(image.get(4, 7).r), 0);
     // A pixel deep in the background keeps its color.
     EXPECT_EQ(static_cast<int>(image.get(0, 0).r), 200);
+}
+
+// A fragment lit head-on (n parallel to light) lands in the brightest band, so
+// a white-albedo material returns full white. With bands=3 a glancing angle
+// (intensity ~0.5) lands in the middle band (2/3).
+TEST(ToonShader, QuantizesDiffuseToBands) {
+    const ToonShader shader(Model("obj/floor.obj"), Material{}, Mat4f::identity(),
+                            Vec3f(0.f, 0.f, 1.f), 3);
+    using V = ToonShader::Varyings;
+    // Normal facing the light: dot = 1 -> brightest band -> white.
+    const V lit{.normal = Vec3f(0.f, 0.f, 1.f), .uv = Vec2f()};
+    const TGAColor c = shader.fragment(lit, 0, 0);
+    EXPECT_EQ(static_cast<int>(c.r), 255);
+
+    // Normal at ~60 deg to the light: dot = 0.5 -> middle band (2/3) -> ~170.
+    const V mid{.normal = Vec3f(std::sqrt(0.75f), 0.f, 0.5f), .uv = Vec2f()};
+    const TGAColor cm = shader.fragment(mid, 0, 0);
+    EXPECT_EQ(static_cast<int>(cm.r), 170); // 255 * (2/3) truncated
+
+    // Normal facing away: dot < 0 clamps to 0 -> darkest band (1/3), not black.
+    const V away{.normal = Vec3f(0.f, 0.f, -1.f), .uv = Vec2f()};
+    const TGAColor ca = shader.fragment(away, 0, 0);
+    EXPECT_EQ(static_cast<int>(ca.r), 85); // 255 * (1/3) truncated
 }
