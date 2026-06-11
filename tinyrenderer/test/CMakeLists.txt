@@ -11,6 +11,7 @@ target_sources(
     ShadowTest.cpp
     ShaderTest.cpp
     AmbientOcclusionTest.cpp
+    ToonTest.cpp
 )
 
 target_link_libraries(

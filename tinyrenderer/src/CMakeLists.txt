@@ -9,6 +9,7 @@ target_sources(
     Model.cpp
     Shader.cpp
     AmbientOcclusion.cpp
+    Outline.cpp
 )
 
 target_include_directories(
