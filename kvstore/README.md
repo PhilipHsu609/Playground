@@ -1,8 +1,6 @@
 # kvstore
 
-A from-scratch LSM-tree key-value storage engine in C++23 — stage 1 of the
-[distributed KV store roadmap](../README.md#roadmap-distributed-kv-store)
-(storage engine → Raft → HTTP).
+A from-scratch LSM-tree key-value storage engine in C++23.
 
 Status: **empty skeleton** — build system only, no engine yet.
 
