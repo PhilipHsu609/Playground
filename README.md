@@ -16,13 +16,15 @@ Compiler reference: [An Incremental Approach to Compiler Construction](https://g
 A from-scratch distributed, fault-tolerant, networked key-value database, built
 in three linked stages (each a standalone, demoable artifact):
 
-1. **Storage engine** — durable single-node KV store (LSM- or B-tree, WAL, crash
-   recovery). Exposes a state-machine interface (`apply(command)` / `get`) so
+1. **Storage engine** — durable single-node KV store: **LSM-tree first**
+   (memtable, WAL, SSTables, compaction), then optionally a **B-tree** for
+   comparison. Exposes a state-machine interface (`apply(command)` / `get`) so
    Raft can drive it.
 2. **Raft** — replicates that state machine across nodes (leader election, log
    replication). Calls the storage engine's `apply` on commit.
 3. **HTTP server** — the client-facing front door; turns requests into Raft
-   `propose`/`get` calls.
+   `propose`/`get` calls. Built on **`io_uring`** (modern high-throughput async
+   I/O) rather than the epoll/sockets stack already done before.
 
 Build to the seams so each stage snaps onto the next without rewrites.
 
