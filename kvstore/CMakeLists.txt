@@ -13,13 +13,6 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Use libc++ under Clang on Linux. Set before FetchContent so the fetched deps
-# build with the same stdlib (avoids a libc++/libstdc++ ABI clash at link time).
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-stdlib=libc++)
-    add_link_options(-stdlib=libc++)
-endif()
-
 # Included after project() so the compiler/system vars the flag guards read are set.
 include(cmake/debug.cmake)
 include(cmake/CompileFlags.cmake)
