@@ -8,7 +8,7 @@ A workspace for miscellaneous projects and experiments.
 |---------|-------------|----------|--------|
 | [kvstore](./kvstore/) | From-scratch LSM-tree key-value storage engine | C++23 | Skeleton only (build system, no engine yet) |
 | [interpreter](./interpreter/) | Monkey language from *Writing An Interpreter In Go* + *Writing A Compiler In Go* | C++23 | Interpreter complete, compiler + bytecode VM next |
-| LLVM Kaleidoscope | [LLVM tutorial](https://llvm.org/docs/tutorial/) — IR generation, JIT, optimization passes, native codegen | C++ | Not started |
+| [kaleidoscope](./kaleidoscope/) | [LLVM Kaleidoscope tutorial](https://llvm.org/docs/tutorial/) — lexer, parser, IR codegen, JIT | C++23 | Skeleton only (build system, no compiler yet) |
 
 Compiler reference: [An Incremental Approach to Compiler Construction](https://github.com/namin/inc) (Ghuloum) for x86 codegen fundamentals.
 
