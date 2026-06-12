@@ -4,13 +4,12 @@ A workspace for miscellaneous projects and experiments.
 
 ## Active
 
-| Slot | Project | Description | Language | Status |
-|------|---------|-------------|----------|--------|
-| 1 — Research | _(open)_ | Next research project — TBD | — | Choosing |
-| 2 — Engineering | [interpreter](./interpreter/) | Monkey language from *Writing An Interpreter In Go* + *Writing A Compiler In Go* | C++23 | Interpreter complete, compiler + bytecode VM next |
-| 3 — Rotational | LLVM Kaleidoscope | [LLVM tutorial](https://llvm.org/docs/tutorial/) — IR generation, JIT, optimization passes, native codegen | C++ | Not started |
+| Project | Description | Language | Status |
+|---------|-------------|----------|--------|
+| [interpreter](./interpreter/) | Monkey language from *Writing An Interpreter In Go* + *Writing A Compiler In Go* | C++23 | Interpreter complete, compiler + bytecode VM next |
+| LLVM Kaleidoscope | [LLVM tutorial](https://llvm.org/docs/tutorial/) — IR generation, JIT, optimization passes, native codegen | C++ | Not started |
 
-Additional material for slot 2: [An Incremental Approach to Compiler Construction](https://github.com/namin/inc) (Ghuloum) for x86 codegen fundamentals.
+Compiler reference: [An Incremental Approach to Compiler Construction](https://github.com/namin/inc) (Ghuloum) for x86 codegen fundamentals.
 
 ## Completed
 
